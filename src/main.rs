@@ -7,18 +7,6 @@ mod parser;
 use parser::Parser;
 
 fn main() -> io::Result<()> {
-    /*
-     * 
-     * so we could have stuff like
-     * let identifer = "abcdefghijklmnopqrstuvwxyz0123456789_";
-     *
-     * then we check if it matches the contents, so it's a regex problem essentially
-     *
-     * let digit = "0123456789";
-     * let op = "=+-*//*^&|";
-        and shit
-    */
-
     let mut f = File::open("mn.ezz")?;
     let mut buffer = [0; 1000];
     let mut stack: Vec<String> = vec![String::new()];
@@ -35,17 +23,11 @@ fn main() -> io::Result<()> {
         }
     }
 
-    for x in &stack {
-        if *x != String::new() {
-            println!("{}", *x);
-        }
-    }
-
     let mut parser = Parser::new();
 
-    parser.process_tokens(&stack);
+    parser.lex_tokens(&stack);
 
-    println!("LexTokens: {:?}", &parser.tokens);
+    println!("LexTokens: {:?}", &parser.lex_tokens);
 
     Ok(())
 }

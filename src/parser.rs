@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, Clone)]
-pub struct Parser {
+pub struct Parser<'a>{
     /*
      * so we want to do what
      * we want to take in each token and determine what it is
@@ -10,24 +10,26 @@ pub struct Parser {
      * LR(1) parsing step
      */
 
-    pub lex_tokens: Vec<LexerToken>,
-    pub parse_stack: Vec<ParserToken>
+    pub lex_tokens:  Vec<LexerToken<'a>>,
+    pub parse_stack: Vec<ParserToken<'a>>
 }
 
-impl Parser {
-    pub fn new() -> Parser {
-        Parser { lex_tokens: vec![] }
+impl<'a> Parser<'_> {
+    pub fn new<'b>() -> Parser<'b> {
+        Parser { lex_tokens: vec![], parse_stack: vec![] }
     }
 
     pub fn parse_lexes(&mut self) {
-        self.parse_stack.append();
+        for x in &self.lex_tokens {
+            self.parse_stack.push(ParserToken {parse_type: ParserTokenType::Identifier, literal: "x" } );
+        }
         //  
     }
 
     pub fn shift() {
     }
 
-    pub fn reduce() -> Result<> {
+    pub fn reduce() -> Result<&'static str, &'static str> {
         // we take a token and its corresponding parser token type
         // and then we see if it can be specified
         // e.g "i32" value -> type
@@ -35,45 +37,47 @@ impl Parser {
         // e.g "500" value -> number
         //
         // once it stops reducing, we shift
+        Ok("Reduced TODO")
     }
 
     pub fn lex_tokens(&mut self, tokens: &Vec<String>) {
         for i in 0..tokens.len() {
-            let cur_token = &lex_tokens[i];
+            let cur_token: &'static str = tokens[i].clone().leak();
                                    
-            self.lex_tokens.push(Self::str_to_lex(&cur_token));
+            self.lex_tokens.push(LexerToken { lexer_type: Self::str_to_lex(&cur_token), literal: &cur_token} );
         }
     }
 
-    pub fn str_to_lex(str: &String) -> LexerToken {
-        match str.as_str() {
-            "i32" => LexerToken::Keyword,
-            "u32" => LexerToken::Keyword,
-            "bool" => LexerToken::Keyword,
-            "u1"=>LexerToken::Keyword,
-            "str"=>LexerToken::Keyword,
-            "chr"=>LexerToken::Keyword,
-            "u8"=>LexerToken::Keyword,
-            "let"=>LexerToken::Keyword,
-            "mut"=>LexerToken::Keyword,
-            "+"=>LexerToken::Op,
-            "-"=>LexerToken::Op,
-            "*"=>LexerToken::Op,
-            "/"=>LexerToken::Op,
-            "^"=>LexerToken::Op,
-            "let"=>LexerToken::Op,
-            "{"=>LexerToken::Delimiter,
-            "}"=>LexerToken::Delimiter,
-            ";"=>LexerToken::Delimiter,
-            _=>LexerToken::Value,
+    pub fn str_to_lex(str: &str) -> LexerTokenType {
+        match str {
+            "i32" => LexerTokenType::Keyword,
+            "u32" => LexerTokenType::Keyword,
+            "bool" => LexerTokenType::Keyword,
+            "u1"=>LexerTokenType::Keyword,
+            "str"=>LexerTokenType::Keyword,
+            "chr"=>LexerTokenType::Keyword,
+            "u8"=>LexerTokenType::Keyword,
+            "let"=>LexerTokenType::Keyword,
+            "mut"=>LexerTokenType::Keyword,
+            "+"=>LexerTokenType::Op,
+            "-"=>LexerTokenType::Op,
+            "*"=>LexerTokenType::Op,
+            "/"=>LexerTokenType::Op,
+            "^"=>LexerTokenType::Op,
+            "let"=>LexerTokenType::Op,
+            "{"=>LexerTokenType::Delimiter,
+            "}"=>LexerTokenType::Delimiter,
+            ";"=>LexerTokenType::Delimiter,
+            _=>LexerTokenType::Value,
         }
     }
+    
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ParserToken {
+pub struct ParserToken<'a> {
     parse_type: ParserTokenType,
-    literal: &str,
+    literal: &'a str,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -92,7 +96,13 @@ pub enum ParserTokenType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum LexerToken {
+pub struct LexerToken<'a> {
+    lexer_type: LexerTokenType,
+    literal: &'a str,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum LexerTokenType {
     Value,
     Op,
     Keyword,
