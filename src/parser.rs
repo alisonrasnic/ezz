@@ -14,19 +14,35 @@ impl<'a> Parser<'_> {
         let mut lexes: Vec<ParserToken> = vec![];
         
         for s in tokens {
-            lexes.push(self::str_to_lex(s));
+            let st_s = s.clone().leak();
+            lexes.push(ParserToken { parse_type: Self::str_to_lex(st_s).expect("Failed to lex token"), literal: st_s });
         }
+
+        lexes
     }
 
-    pub fn parse(&mut self, tokens: &Vec<ParserToken>) -> bool {
-        
+    /*pub fn parse(&mut self, tokens: &Vec<ParserToken>) -> bool {
+        // 
     }
 
     pub fn shift() {
+        //
+    }*/
+
+    pub fn reduce(&mut self) -> Result<&'static str, &'static str> {
+        Ok("Reduced TODO")
     }
 
-    pub fn reduce() -> Result<&'static str, &'static str> {
-        Ok("Reduced TODO")
+    fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
+        Some(match s {
+            "i32" => ParserTokenType::Type,
+            "u32" => ParserTokenType::Type,
+            "string" => ParserTokenType::Type,
+            "{"   => ParserTokenType::Delim,
+            "}"   => ParserTokenType::Delim,
+            ";"   => ParserTokenType::Delim,
+            _     => ParserTokenType::Id,
+        })
     }
 }
 
@@ -120,8 +136,6 @@ pub enum ParserTokenType {
     Id,
     Op,
     Type,
-    Arr,
-    Reserved,
-    Delimiter,
+    Delim,
     Comma
 }

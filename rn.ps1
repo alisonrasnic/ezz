@@ -1,0 +1,1 @@
+cargo run -- mn.ezz
