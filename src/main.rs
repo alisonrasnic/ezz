@@ -29,19 +29,26 @@ fn main() -> io::Result<()> {
     let mut idx = 0; 
     let mut string_start = false;
     for x in buffer {
-        if x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' {
-            stack[idx].push(x as char);
-        } else if x != b'\'' && x != b'\"' && !string_start {
-            idx += 1;
-            stack.push(String::new());
-            string_start = false;
-        } else {
-            if string_start {
+        if x != b'\0' {
+            if x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' && x != b'\'' && x != b'\"' {
                 stack[idx].push(x as char);
-            } else {
+            } else if x != b'\'' && x != b'\"' && !string_start {
                 idx += 1;
-                stack.push(String::from(x as char));
-                string_start = true;
+                stack.push(String::new());
+                string_start = false;
+            } else {
+                if string_start {
+                    stack[idx].push(x as char);
+                    if x == b'\'' || x == b'\"' {
+                        idx += 1;
+                        stack.push(String::new());
+                        string_start = false;
+                    }
+                } else {
+                    idx += 1;
+                    stack.push(String::from(x as char));
+                    string_start = true;
+                }
             }
         }
     }

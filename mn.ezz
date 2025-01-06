@@ -1,4 +1,5 @@
 i32 mn $args {
 	put "Hello, World!";
+	put "This is Ezz lang!";
 	0
 }

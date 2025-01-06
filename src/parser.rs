@@ -14,8 +14,10 @@ impl<'a> Parser<'_> {
         let mut lexes: Vec<ParserToken> = vec![];
         
         for s in tokens {
-            let st_s = s.clone().leak();
-            lexes.push(ParserToken { parse_type: Self::str_to_lex(st_s).expect("Failed to lex token"), literal: st_s });
+            if *s != String::new() {
+                let st_s = s.clone().leak();
+                lexes.push(ParserToken { parse_type: Self::str_to_lex(st_s).expect("Failed to lex token"), literal: st_s });
+            }
         }
 
         lexes
@@ -34,7 +36,19 @@ impl<'a> Parser<'_> {
     }
 
     fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
-        Some(match s {
+        /*
+         *
+         *      this is going to get into regex expressions
+         *
+         *      like if it starts and ends with \" then it is a string value
+         *
+         *      is it digits, then it's value, etc.
+         *
+         *      I think each should be matched via a specifiable predicate
+         *
+         */
+        return Some(s.chars().fold(true, |acc, ch| if !ch.is_alphanumeric() { acc = false })); 
+        /*Some(match s {
             "i32" => ParserTokenType::Type,
             "u32" => ParserTokenType::Type,
             "string" => ParserTokenType::Type,
@@ -42,7 +56,13 @@ impl<'a> Parser<'_> {
             "}"   => ParserTokenType::Delim,
             ";"   => ParserTokenType::Delim,
             _     => ParserTokenType::Id,
-        })
+        })*/
+    }
+
+    fn match_ch_to_rx<F>(f: F, st: char) -> bool where
+        F: Fn(char) -> bool {
+        
+        f(st)
     }
 }
 
