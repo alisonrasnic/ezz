@@ -30,9 +30,9 @@ fn main() -> io::Result<()> {
     let mut string_start = false;
     for x in buffer {
         if x != b'\0' {
-            if x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' && x != b'\'' && x != b'\"' {
+            if x != b'$' && x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' && x != b'\'' && x != b'\"' {
                 stack[idx].push(x as char);
-            } else if x != b'\'' && x != b'\"' && !string_start {
+            } else if x != b'\'' && x != b'\"' && !string_start && x != b'$' {
                 idx += 1;
                 stack.push(String::new());
                 string_start = false;
@@ -47,7 +47,12 @@ fn main() -> io::Result<()> {
                 } else {
                     idx += 1;
                     stack.push(String::from(x as char));
-                    string_start = true;
+                    if x == b'\'' || x == b'\"' {
+                        string_start = true;
+                    } else {
+                        idx += 1;
+                        stack.push(String::new());
+                    }
                 }
             }
         }

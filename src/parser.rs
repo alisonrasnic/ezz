@@ -10,7 +10,7 @@ impl<'a> Parser<'_> {
 
     // lex is necessary to convert from string into a token
     //  as opposed to the parse which changes tokens into simpler tokens
-    pub fn lex(&self, tokens: &Vec<String>) -> Vec<ParserToken> {
+    pub fn lex(&mut self, tokens: &Vec<String>) -> Vec<ParserToken> {
         let mut lexes: Vec<ParserToken> = vec![];
         
         for s in tokens {
@@ -20,43 +20,63 @@ impl<'a> Parser<'_> {
             }
         }
 
+        self.parse_stack = lexes.clone();
+
         lexes
     }
 
-    /*pub fn parse(&mut self, tokens: &Vec<ParserToken>) -> bool {
-        // 
+    pub fn parse(&mut self, tokens: &Vec<ParserToken>) -> bool {
+        
+        // so we wanna shift once, and start reducing until reduce returns Err
+
+        let mut cur_token: Option<ParserToken> = None;
+        cur_token = self.shift();
+
+        if let Some(t) = cur_token {
+            // TODO: We found a symbol    
+        } else {
+            // TODO: No more symbols
+        }
+
+        false
     }
 
-    pub fn shift() {
-        //
-    }*/
+    pub fn shift(&mut self) -> Option<ParserToken> {
+        false
+    }
 
     pub fn reduce(&mut self) -> Result<&'static str, &'static str> {
         Ok("Reduced TODO")
     }
 
     fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
-        /*
-         *
-         *      this is going to get into regex expressions
-         *
-         *      like if it starts and ends with \" then it is a string value
-         *
-         *      is it digits, then it's value, etc.
-         *
-         *      I think each should be matched via a specifiable predicate
-         *
-         */
-        return Some(s.chars().fold(true, |acc, ch| if !ch.is_alphanumeric() { acc = false })); 
-        /*Some(match s {
-            "i32" => ParserTokenType::Type,
-            "u32" => ParserTokenType::Type,
-            "string" => ParserTokenType::Type,
-            "{"   => ParserTokenType::Delim,
-            "}"   => ParserTokenType::Delim,
-            ";"   => ParserTokenType::Delim,
-            _     => ParserTokenType::Id,
-        })*/
+        let mut typ = ParserTokenType::Id;
+        let mut is_dig = true;
+        for ch in s.chars() {
+            if Self::match_ch_to_rx(|x| !x.is_digit(10), ch) {
+                is_dig = false;
+            }
+
+            if is_dig {
+                return Some(ParserTokenType::Value);
+            }
+        }
+
+        if Self::match_str_to_rx(|st| st.starts_with("\"") && st.ends_with("\""), &s.to_owned()) {
+            return Some(ParserTokenType::Value);
+        } else if Self::match_str_to_rx(|st| *st == String::from("$") || *st == String::from("i32") || *st == String::from("u32") || *st == String::from("string") || *st == String::from("bool"), &s.to_owned()) {
+            return Some(ParserTokenType::Type);
+        } else if Self::match_str_to_rx(|st| *st == String::from("{") || *st == String::from("}") || *st == String::from(";"), &s.to_owned()) {
+            return Some(ParserTokenType::Delim);
+        } else {
+            return Some(ParserTokenType::Id);
+        }
+    }
+
+    fn match_str_to_rx<F>(f: F, st: &String) -> bool where
+        F: Fn(&String) -> bool {
+        
+        f(st)
     }
 
     fn match_ch_to_rx<F>(f: F, st: char) -> bool where
