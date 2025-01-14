@@ -4,6 +4,7 @@ use std::fs::File;
 use std::env;
 
 mod parser;
+mod trie;
 
 use parser::Parser;
 
@@ -60,9 +61,11 @@ fn main() -> io::Result<()> {
 
     let mut parser = Parser::new();
 
-    let result = parser.lex(&stack);
-
-    println!("LexTokens: {:?}", result);
+    use crate::parser::ParserToken;
+    let mut result: Vec<ParserToken> = vec![];
+    result = parser.lex(&stack);
+    let mut parse_stack: Vec<ParserToken> = vec![];
+    parser.parse(result, &mut parse_stack);
 
     Ok(())
 }
