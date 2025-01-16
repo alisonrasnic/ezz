@@ -27,11 +27,11 @@ impl Parser {
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
 
-        while (cur_token.is_some()) {
+        while cur_token.is_some() {
             let t = cur_token.unwrap();
             parse_stack.push(t);
             let mut res = self.reduce();
-            while (res.is_ok()) {
+            while res.is_ok() {
                 res = self.reduce();
             }
             match res {
@@ -53,9 +53,16 @@ impl Parser {
         //
 
         use crate::trie::TrieNode;
+        use std::rc::Rc;
 
         let mut trie = TrieNode::new();
-        trie.insert_route(vec![2, 5, 2, 3]);
+        trie.insert_route(vec![2, 5, 2, 3], vec![Rc::from(TrieNode::new()), Rc::from(TrieNode::new()), Rc::from(TrieNode::new()), Rc::from(TrieNode::new())]);
+        trie.insert_route(vec![1, 4, 1, 4, 6]);
+        // the 8 is going to loop around to the 2nd 1
+        trie.insert_route(vec![1, 4, 1, 4, 8, 6]);
+        let mut node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
+        let mut node_2 = trie.get_child_from_route(vec![1, 4, 1]).unwrap();
+        node_1.insert_node((1, node_2));
         trie.insert_route(vec![4, 4, 5, 2, 3]);
         trie.insert_route(vec![4, 2, 2]);
         trie.insert_route(vec![6, 4, 3, 2, 6]);

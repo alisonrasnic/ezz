@@ -67,5 +67,9 @@ fn main() -> io::Result<()> {
     let mut parse_stack: Vec<ParserToken> = vec![];
     parser.parse(result, &mut parse_stack);
 
+    for x in parse_stack {
+        println!("{:?}, ", x);
+    }
+
     Ok(())
 }
