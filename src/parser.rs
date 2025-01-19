@@ -1,10 +1,31 @@
+
+use crate::trie::TrieNode;
+use std::any::Any;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
+    trie: TrieNode,
 }
 
 impl Parser {
     pub fn new() -> Parser {
-        Parser { }
+        let mut trie = TrieNode::new();
+        trie.insert_route(vec![2, 5, 2, 3]);
+        trie.insert_route(vec![1, 4, 1, 4, 6]);
+        // the 8 is going to loop around to the 2nd 1
+        trie.insert_route(vec![1, 4, 1, 4, 8, 6]);
+        let mut node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
+        let node_2 = trie.get_child_from_route(vec![1, 4, 1]).unwrap();
+        node_1.borrow_mut().insert_child(1, node_2);
+        trie.insert_route(vec![4, 4, 5, 2, 3]);
+        trie.insert_route(vec![4, 2, 2]);
+        trie.insert_route(vec![6, 7, 6]);
+        trie.insert_route(vec![6, 4, 3, 2, 6]);
+        let node_3 = trie.get_child_from_route(vec![6, 7, 6]).unwrap();
+        node_3.clone().borrow_mut().insert_child(6, node_3);
+        trie.insert_route(vec![6, 7, 2, 7, 6]);
+
+        Parser { trie: trie }
     }
 
     // lex is necessary to convert from string into a token
@@ -30,9 +51,9 @@ impl Parser {
         while cur_token.is_some() {
             let t = cur_token.unwrap();
             parse_stack.push(t);
-            let mut res = self.reduce();
+            let mut res = self.reduce(parse_stack);
             while res.is_ok() {
-                res = self.reduce();
+                res = self.reduce(parse_stack);
             }
             match res {
                 Ok(r) => {},
@@ -48,28 +69,28 @@ impl Parser {
         parse_stack[0].parse_type == ParserTokenType::Func
     }
 
-    pub fn reduce(&self) -> Result<&'static str, &'static str> {
+    pub fn reduce<'a>(&self, mut parse_stack: &mut Vec<ParserToken<'a>>) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
         //
+        
+        let mut cur_trie_node = self.trie.clone();
+        let mut local_stack: Vec<u8> = vec![];
+        for x in &mut *parse_stack {
+            local_stack.push(x.parse_type.clone() as u8);
+        }
 
-        use crate::trie::TrieNode;
-        use std::rc::Rc;
+        let mut res = cur_trie_node.get_child_from_route(local_stack);
 
-        let mut trie = TrieNode::new();
-        trie.insert_route(vec![2, 5, 2, 3], vec![Rc::from(TrieNode::new()), Rc::from(TrieNode::new()), Rc::from(TrieNode::new()), Rc::from(TrieNode::new())]);
-        trie.insert_route(vec![1, 4, 1, 4, 6]);
-        // the 8 is going to loop around to the 2nd 1
-        trie.insert_route(vec![1, 4, 1, 4, 8, 6]);
-        let mut node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
-        let mut node_2 = trie.get_child_from_route(vec![1, 4, 1]).unwrap();
-        node_1.insert_node((1, node_2));
-        trie.insert_route(vec![4, 4, 5, 2, 3]);
-        trie.insert_route(vec![4, 2, 2]);
-        trie.insert_route(vec![6, 4, 3, 2, 6]);
-        trie.insert_route(vec![6, 7, 6, 0]);
-        trie.insert_route(vec![6, 7, 2, 7, 6]);
+        match res {
+            Some(s) => {
+                let leaf = s.borrow_mut().get_leaf().unwrap();
 
-        Err("eof")
+                *parse_stack = vec![ParserToken { parse_type: from_u8(leaf), literal: ""}];
+                
+                Ok("success")
+            },
+            None    => {Err("eof")}
+        }
     }
 
     fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
@@ -201,4 +222,18 @@ pub enum ParserTokenType {
     Type=1,
     Delim=7,
     Comma=8
+}
+
+pub fn from_u8(num: u8) -> ParserTokenType {
+    match num {
+        1 => ParserTokenType::Type,
+        2 => ParserTokenType::Value,
+        3 => ParserTokenType::Expr,
+        4 => ParserTokenType::Id,
+        5 => ParserTokenType::Op,
+        6 => ParserTokenType::Func,
+        7 => ParserTokenType::Delim,
+        8 => ParserTokenType::Comma,
+        _ => ParserTokenType::Id,
+    }
 }

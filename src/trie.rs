@@ -1,38 +1,57 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct TrieNode {
-    options: Vec<(u8, Rc<TrieNode>)>,
+    options: Vec<(u8, Rc<RefCell<TrieNode>>)>,
 }
 
-use std::rc::Rc;
+use std::any::Any;
 
 impl TrieNode {
     pub fn new() -> Self {
         TrieNode { options: vec![] } 
     }
 
-    pub fn insert_node(&mut self, idx: u8, node: Rc<TrieNode>) -> bool {
+    pub fn insert_child(&mut self, idx: u8, node: Rc<RefCell<TrieNode>>) -> bool {
         self.options.push( (idx, node) );
         true
     }
 
-    pub fn insert_route(&mut self, idx_s: Vec<u8>, nodes: Vec<Rc<TrieNode>>) -> bool {
-        let mut cur_node = Rc::from(self);
+    pub fn insert_node(&mut self, idx: u8) -> Rc<RefCell<TrieNode>> { 
+        let node = Rc::from(RefCell::from(TrieNode::new()));
+        self.options.push( (idx, node.clone()) );
+        node.clone()
+    }
 
-        for i in 0..idx_s.len() {
+    pub fn insert_route(&mut self, idx_s: Vec<u8>) -> bool {
+        println!("\nStarting new route...\n");
+        if idx_s.len() < 2 {
+            return false;
+        }
+
+        let mut cur_node: Rc<RefCell<TrieNode>> = match self.has_child(idx_s[0]) {
+            true =>  {
+                self.get_child(idx_s[0]).expect("unreachable")
+            },
+            false => {
+                self.insert_node(idx_s[0])
+            },
+        };
+        for i in 1..idx_s.len() {
             let x = idx_s[i];
-            let x_node = nodes[i];
-            if !cur_node.has_child(x) {
-                cur_node.insert_node(x, x_node);
+            if !cur_node.borrow_mut().has_child(x) {
+                let clone = cur_node.borrow_mut().insert_node(x);
+                cur_node = clone;
+            } else {
+                println!("Node{} already existed!", x);
+                let clone = cur_node.borrow_mut().get_child(x);
+                cur_node = clone.expect("this shouldn't happen");
             }
 
-            let mut new_node = cur_node.find_idx(x);
-
-            match new_node {
-                Some(n) => {cur_node = n;},
-                None    => {panic!("oopsi");},
-            };
+            println!("Added node: {}", x);
         }
-        
+
         true
     }
 
@@ -46,8 +65,8 @@ impl TrieNode {
         false
     }
 
-    fn find_idx(&self, idx: u8) -> Option<Rc<&mut TrieNode>> {
-        for x in &self.options {
+    fn find_idx(&mut self, idx: u8) -> Option<Rc<RefCell<TrieNode>>> {
+        for x in &mut self.options {
             if x.0 == idx {
                 return Some(x.1.clone());
             }
@@ -56,7 +75,7 @@ impl TrieNode {
         None
     }
 
-    pub fn get_child(&mut self, idx: u8) -> Option<Rc<&mut TrieNode>> {
+    pub fn get_child(&mut self, idx: u8) -> Option<Rc<RefCell<TrieNode>>> {
         if self.has_child(idx) {
             return self.find_idx(idx);
         } else {
@@ -64,13 +83,38 @@ impl TrieNode {
         }
     }
 
-    pub fn get_child_from_route(&mut self, idx_s: Vec<u8>) -> Option<Rc<&mut TrieNode>> {
-        let mut cur_node = Rc::from(self);
+    pub fn get_leaf(&mut self) -> Option<u8> {
+        for x in &self.options {
+            if x.1.borrow_mut().options.len() == 1 {
+                return Some(x.0.clone());
+            }
+        }
 
-        for x in idx_s {
-            if cur_node.has_child(x) {
-                cur_node = cur_node.get_child(x).unwrap();
+        None
+    }
+
+    pub fn get_child_from_route(&mut self, idx_s: Vec<u8>) -> Option<Rc<RefCell<TrieNode>>> {
+        let mut cur_node = self.get_child(idx_s[0]).expect("Did you expect this to work?");
+
+        //
+        //  suppose we have 1, 4, 1, 4, 8
+        //
+        //  it assigns cur_node -> 1
+        //  then it checks our second idx, 2
+        //  checks if 1 -> 2
+        //  if it doesn't, return false, else:
+        //      assign cur_node to 2
+        //
+        //      and repeat?
+
+        for i in 1..idx_s.len() {
+            let x = idx_s[i];
+            if cur_node.borrow_mut().has_child(x) {
+                println!("Found this one: {}", x);
+                let clone = cur_node.borrow_mut().get_child(x).unwrap();
+                cur_node = clone;
             } else {
+                println!("Coudln't find this one: {}", x);
                 return None;
             }
         }
