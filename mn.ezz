@@ -1,5 +1,14 @@
-i32 mn $args {
-	put "Hello, World!";
-	put "This is Ezz lang!";
+i32 mn $ args {
+	put "Hello, world!"
+	let x = 0
+	put "This is Ezz lang!"
+	1337
+}
+
+i32 new_func i32 inp {
 	0
+}
+
+string foo i32 inp {
+	"Hi"
 }

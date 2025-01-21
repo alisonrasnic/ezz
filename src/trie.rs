@@ -25,7 +25,6 @@ impl TrieNode {
     }
 
     pub fn insert_route(&mut self, idx_s: Vec<u8>) -> bool {
-        println!("\nStarting new route...\n");
         if idx_s.len() < 2 {
             return false;
         }
@@ -44,12 +43,9 @@ impl TrieNode {
                 let clone = cur_node.borrow_mut().insert_node(x);
                 cur_node = clone;
             } else {
-                println!("Node{} already existed!", x);
                 let clone = cur_node.borrow_mut().get_child(x);
                 cur_node = clone.expect("this shouldn't happen");
             }
-
-            println!("Added node: {}", x);
         }
 
         true
@@ -83,9 +79,21 @@ impl TrieNode {
         }
     }
 
-    pub fn get_leaf(&mut self) -> Option<u8> {
+    pub fn get_leaf(&self) -> Option<u8> {
+
+        if self.options.len() == 0 {
+            return None;
+        }
+
+        let rcc = Rc::from(RefCell::from(self.clone()));
         for x in &self.options {
-            if x.1.borrow_mut().options.len() == 1 {
+            {
+                let will_loop = Rc::ptr_eq(&rcc, &x.1);
+                if will_loop {
+                    continue;
+                }
+            }
+            if x.1.borrow().clone().options.len() == 0 {
                 return Some(x.0.clone());
             }
         }
@@ -94,6 +102,14 @@ impl TrieNode {
     }
 
     pub fn get_child_from_route(&mut self, idx_s: Vec<u8>) -> Option<Rc<RefCell<TrieNode>>> {
+        if idx_s.len() < 2 {
+            return None;
+        }
+
+        if !self.has_child(idx_s[0]) {
+            return None;
+        }
+
         let mut cur_node = self.get_child(idx_s[0]).expect("Did you expect this to work?");
 
         //
@@ -110,11 +126,9 @@ impl TrieNode {
         for i in 1..idx_s.len() {
             let x = idx_s[i];
             if cur_node.borrow_mut().has_child(x) {
-                println!("Found this one: {}", x);
                 let clone = cur_node.borrow_mut().get_child(x).unwrap();
                 cur_node = clone;
             } else {
-                println!("Coudln't find this one: {}", x);
                 return None;
             }
         }

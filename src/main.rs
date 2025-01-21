@@ -29,9 +29,18 @@ fn main() -> io::Result<()> {
      */
     let mut idx = 0; 
     let mut string_start = false;
-    for x in buffer {
-        if x != b'\0' {
-            if x != b'$' && x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' && x != b'\'' && x != b'\"' {
+    let mut skip_until = 0;
+    for i in 0..1000 {
+        let x = buffer[i];
+        if x != b'\0' && skip_until == 0 {
+            if i+1 < buffer.len() && x == b'/' && buffer[i+1] == b'/' {
+                let mut new_i = i;
+                while buffer[new_i] != b'\n' {
+                    new_i += 1;
+                    skip_until += 1;
+                }
+                continue;
+            } else if x != b'$' && x != b' ' && x != b'\n' && x != b'\t' && x != b'\r' && x != b'\'' && x != b'\"' {
                 stack[idx].push(x as char);
             } else if x != b'\'' && x != b'\"' && !string_start && x != b'$' {
                 idx += 1;
@@ -56,6 +65,8 @@ fn main() -> io::Result<()> {
                     }
                 }
             }
+        } else if skip_until > 0 {
+            skip_until -= 1;
         }
     }
 
@@ -65,10 +76,20 @@ fn main() -> io::Result<()> {
     let mut result: Vec<ParserToken> = vec![];
     result = parser.lex(&stack);
     let mut parse_stack: Vec<ParserToken> = vec![];
-    parser.parse(result, &mut parse_stack);
+    println!("\n\nBeginning parsing...\n\n");
+    let parse_res = parser.parse(result, &mut parse_stack);
+
+    println!("\n\n\n\n\n\n");
 
     for x in parse_stack {
         println!("{:?}, ", x);
+    }
+
+    use colored::Colorize;
+    if parse_res {
+        println!("\n{}", "Parsing successful!".green());
+    } else {
+        println!("\n{}", "Parsing failed with errors...".red());
     }
 
     Ok(())
