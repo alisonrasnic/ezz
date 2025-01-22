@@ -7,6 +7,7 @@ mod parser;
 mod trie;
 
 use parser::Parser;
+use crate::parser::ParserTokenType;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -85,8 +86,14 @@ fn main() -> io::Result<()> {
         println!("{:?}, ", x);
     }
 
+    println!("\n");
+    for x in &parse_res {
+        println!("{:?}", x);
+    }
+    println!("\n");
+
     use colored::Colorize;
-    if parse_res {
+    if parse_res.last().unwrap().clone().get_type() == ParserTokenType::Func {
         println!("\n{}", "Parsing successful!".green());
     } else {
         println!("\n{}", "Parsing failed with errors...".red());

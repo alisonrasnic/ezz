@@ -51,19 +51,21 @@ impl Parser {
         lexes
     }
 
-    pub fn parse<'a>(&self, tokens: Vec<ParserToken<'a>>, parse_stack: &mut Vec<ParserToken<'a>>) -> bool {
+    pub fn parse<'a>(&self, tokens: Vec<ParserToken<'a>>, parse_stack: &mut Vec<ParserToken<'a>>) -> Vec<ParserToken<'a>> {
         let mut cur_token: Option<ParserToken> = None;
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
+
+        let mut ast: Vec<ParserToken<'a>> = tokens.clone();
 
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
         while cur_token.is_some() {
             let t = cur_token.unwrap();
             parse_stack.push(t);
-            let mut res = self.reduce(parse_stack, reduce_count);
+            let mut res = self.reduce(parse_stack, &mut ast, reduce_count);
             while res.is_ok() {
-                res = self.reduce(parse_stack, reduce_count);
+                res = self.reduce(parse_stack, &mut ast, reduce_count);
                 incr_red_count = true;
             }
             if incr_red_count {
@@ -83,10 +85,11 @@ impl Parser {
             cur_token = tokens_iter.next().cloned();
         }
 
-        (parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
+        ast
+        //(parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
     }
 
-    pub fn reduce<'a>(&self, mut parse_stack: &mut Vec<ParserToken<'a>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
+    pub fn reduce<'a>(&self, mut parse_stack: &mut Vec<ParserToken<'a>>, mut ast: &mut Vec<ParserToken<'a>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
         //
         
@@ -126,6 +129,7 @@ impl Parser {
 
                                 (*parse_stack).drain(i..j+1); 
                                 (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone().leak()});
+                                (*ast).push(ParserToken { parse_type: from_u8(n), literal: literal.clone().leak()});
 
                                 local_stack = vec![];
                                 for x in &mut *parse_stack {
@@ -199,6 +203,12 @@ impl Parser {
 pub struct ParserToken<'a> {
     parse_type: ParserTokenType,
     literal: &'a str,
+}
+
+impl<'b> ParserToken<'b> {
+    pub fn get_type(self) -> ParserTokenType {
+        self.parse_type
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
