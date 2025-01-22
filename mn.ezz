@@ -1,14 +1,5 @@
 i32 mn $ args {
-	put "Hello, world!"
-	let x = 0
-	put "This is Ezz lang!"
+	let str = "Hello, world!";
+	put str;
 	1337
-}
-
-i32 new_func i32 inp {
-	0
-}
-
-string foo i32 inp {
-	"Hi"
 }

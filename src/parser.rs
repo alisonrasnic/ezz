@@ -29,6 +29,9 @@ impl Parser {
         trie.insert_route(vec![10, 7, 3, 2, 7, 6]);
         trie.insert_route(vec![6, 6, 9]);
         trie.insert_route(vec![9, 6, 9]);
+        trie.insert_route(vec![4, 3, 3]);
+        trie.insert_route(vec![4, 4, 3]);
+        trie.insert_route(vec![3, 5, 2, 3]);
 
         Parser { trie: trie }
     }
@@ -53,8 +56,6 @@ impl Parser {
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
 
-        println!("\n=====\nParsing tokens: {:?}\n======\n", &tokens_iter);
-
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
         while cur_token.is_some() {
@@ -63,7 +64,6 @@ impl Parser {
             let mut res = self.reduce(parse_stack, reduce_count);
             while res.is_ok() {
                 res = self.reduce(parse_stack, reduce_count);
-                println!("Result: {:?}", res);
                 incr_red_count = true;
             }
             if incr_red_count {
@@ -81,7 +81,6 @@ impl Parser {
                 },
             }
             cur_token = tokens_iter.next().cloned();
-            println!("Cur Token: {:?}", cur_token.clone());
         }
 
         (parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
@@ -106,7 +105,6 @@ impl Parser {
         while w < local_stack.len() {
         
             while j < local_stack.len() {
-                println!("Iterated i-j, w: {}-{}, {}", &i, &j, &w);
                 let slice = &local_stack[i..j+1];
 
                 let mut res = cur_trie_node.get_child_from_route(slice.to_vec());
@@ -123,7 +121,6 @@ impl Parser {
                                 let mut cur_parse_slice = parse_slice.next();
                                 while cur_parse_slice.is_some() {
                                     literal.push_str(cur_parse_slice.unwrap().literal);
-                                    println!("Processing literal: {}", literal);
                                     cur_parse_slice = parse_slice.next();
                                 }
 
@@ -138,7 +135,6 @@ impl Parser {
                                 w = 0;
                                 j = i+w;
 
-                                println!("parser_stack {:?}", parse_stack);
                                 Ok("success")
                             },
                             None => Err("eof"),
