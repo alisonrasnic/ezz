@@ -1,13 +1,16 @@
 use std::io;
 use std::io::prelude::*;
 use std::fs::File;
+use std::rc::Rc;
 use std::env;
 
 mod parser;
 mod trie;
+mod tree;
 
 use parser::Parser;
 use crate::parser::ParserTokenType;
+use crate::tree::TreeNode;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -78,7 +81,7 @@ fn main() -> io::Result<()> {
     result = parser.lex(&stack);
     let mut parse_stack: Vec<ParserToken> = vec![];
     println!("\n\nBeginning parsing...\n\n");
-    let parse_res = parser.parse(result, &mut parse_stack);
+    let mut parse_res = parser.parse(result, &mut parse_stack);
 
     println!("\n\n\n\n\n\n");
 
@@ -86,18 +89,29 @@ fn main() -> io::Result<()> {
         println!("{:?}, ", x);
     }
 
-    println!("\n");
+    /*println!("\n");
     for x in &parse_res {
         println!("{:?}", x);
     }
-    println!("\n");
+    println!("\n");*/
 
+    let mut binding = (&parse_res).borrow();
     use colored::Colorize;
-    if parse_res.last().unwrap().clone().get_type() == ParserTokenType::Func {
-        println!("\n{}", "Parsing successful!".green());
-    } else {
-        println!("\n{}", "Parsing failed with errors...".red());
+    {
+        let mut val: Option<ParserTokenType> = None;
+        {
+            val = Some(binding.get_value().get_type());
+        }
+        println!("Type is: {:?}", val);
+
+        if val == Some(ParserTokenType::Func) {
+            println!("\n{}", "Parsing successful!".green());
+        } else {
+            println!("\n{}", "Parsing failed with errors...".red());
+        }
     }
+
+    binding.vlr_print();
 
     Ok(())
 }

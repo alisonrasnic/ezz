@@ -1,6 +1,9 @@
 
 use crate::trie::TrieNode;
+use crate::tree::TreeNode;
 use std::any::Any;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
@@ -43,29 +46,30 @@ impl Parser {
         
         for s in tokens {
             if *s != String::new() {
-                let st_s = s.clone().leak();
-                lexes.push(ParserToken { parse_type: Self::str_to_lex(st_s).expect("Failed to lex token"), literal: st_s });
+                lexes.push(ParserToken { parse_type: Self::str_to_lex(s.clone().leak()).expect("Failed to lex token"), literal: s.clone() });
             }
         }
 
         lexes
     }
 
-    pub fn parse<'a>(&self, tokens: Vec<ParserToken<'a>>, parse_stack: &mut Vec<ParserToken<'a>>) -> Vec<ParserToken<'a>> {
+    pub fn parse(&self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Rc<RefCell<TreeNode>> {
         let mut cur_token: Option<ParserToken> = None;
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
 
-        let mut ast: Vec<ParserToken<'a>> = tokens.clone();
+        let mut ast: Option<&Rc<RefCell<TreeNode>>> = None;
 
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
         while cur_token.is_some() {
-            let t = cur_token.unwrap();
+            let t = cur_token.clone().unwrap();
             parse_stack.push(t);
-            let mut res = self.reduce(parse_stack, &mut ast, reduce_count);
+            let new_tree_node = Rc::from(RefCell::from(TreeNode::new((cur_token.unwrap()))));
+            ast = Some(new_tree_node);
+            let mut res = self.reduce(parse_stack, &mut ast.clone(), reduce_count);
             while res.is_ok() {
-                res = self.reduce(parse_stack, &mut ast, reduce_count);
+                res = self.reduce(parse_stack, &mut ast.clone(), reduce_count);
                 incr_red_count = true;
             }
             if incr_red_count {
@@ -85,11 +89,12 @@ impl Parser {
             cur_token = tokens_iter.next().cloned();
         }
 
-        ast
+        ast.as_ref().unwrap().borrow().vlr_print();
+        ast.as_ref().unwrap().clone()
         //(parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
     }
 
-    pub fn reduce<'a>(&self, mut parse_stack: &mut Vec<ParserToken<'a>>, mut ast: &mut Vec<ParserToken<'a>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
+    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut Option<Rc<RefCell<TreeNode>>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
         //
         
@@ -123,13 +128,15 @@ impl Parser {
 
                                 let mut cur_parse_slice = parse_slice.next();
                                 while cur_parse_slice.is_some() {
-                                    literal.push_str(cur_parse_slice.unwrap().literal);
+                                    literal.push_str(&cur_parse_slice.unwrap().literal);
                                     cur_parse_slice = parse_slice.next();
                                 }
 
                                 (*parse_stack).drain(i..j+1); 
-                                (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone().leak()});
-                                (*ast).push(ParserToken { parse_type: from_u8(n), literal: literal.clone().leak()});
+                                (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone()});
+                                let new_tree_node = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
+                                new_tree_node.borrow_mut().set_right(ast.as_ref().unwrap().clone());
+                                *ast = Some(new_tree_node);
 
                                 local_stack = vec![];
                                 for x in &mut *parse_stack {
@@ -200,14 +207,14 @@ impl Parser {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ParserToken<'a> {
+pub struct ParserToken {
     parse_type: ParserTokenType,
-    literal: &'a str,
+    literal: String,
 }
 
-impl<'b> ParserToken<'b> {
-    pub fn get_type(self) -> ParserTokenType {
-        self.parse_type
+impl ParserToken {
+    pub fn get_type(&self) -> ParserTokenType {
+        self.parse_type.clone()
     }
 }
 
