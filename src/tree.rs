@@ -37,22 +37,31 @@ impl TreeNode {
         self.right = Some(token);
     }
 
-    pub fn vlr_print(& self) {
-        print!("{:?} ", self.get_value());
+    pub fn vlr_print(&self, is_left: bool) {
+        if is_left {
+            print!("  LEFT:\n");
+        }
+        print!("---Helo!: {:?} \n", self.get_value());
+        self.rvlr_print();
         self.lvlr_print();
     }
 
     fn lvlr_print(&self) {
         if let Some(left) = &self.left {
             let bor = left.borrow();
-            bor.vlr_print();
+            bor.vlr_print(true);
+        } else {
+            print!(" Found no nodes on LEFT ");
         }
+
     }
 
     fn rvlr_print(&self) {
         if let Some(right) = &self.right {
             let bor = right.borrow();
-            bor.vlr_print();
+            bor.vlr_print(false);
+        } else {
+            print!(" Found no nodes on RIGHT ");
         }
     }
 }

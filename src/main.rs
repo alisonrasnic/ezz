@@ -111,7 +111,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    binding.vlr_print();
+    binding.vlr_print(true);
 
     Ok(())
 }

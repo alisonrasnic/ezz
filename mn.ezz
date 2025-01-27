@@ -1,5 +1,5 @@
-i32 mn $ args {
-	let str = "Hello, world!";
-	put str;
+i32 mn $ args 
+	let str = "Hello, world!"
+	put str
 	1337
-}
+

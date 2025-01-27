@@ -22,14 +22,19 @@ impl Parser {
         node_1.borrow_mut().insert_child(1, node_2);
         trie.insert_route(vec![4, 4, 5, 2, 3]);
         trie.insert_route(vec![4, 2, 3]);
-        trie.insert_route(vec![3, 7, 3]);
+        //trie.insert_route(vec![3, 7, 3]);
+        trie.insert_route(vec![3, 3]);
         trie.insert_route(vec![3, 5, 3, 3]);
-        trie.insert_route(vec![10, 7, 3]);
+        //trie.insert_route(vec![10, 7, 3]);
+        trie.insert_route(vec![10, 3]);
         trie.insert_route(vec![10, 4, 3, 2, 6]);
-        let node_3 = trie.get_child_from_route(vec![10, 7, 3]).unwrap();
+        let node_3 = trie.get_child_from_route(vec![10, 3]).unwrap();
         node_3.clone().borrow_mut().insert_child(3, node_3);
-        trie.insert_route(vec![10, 7, 2, 7, 6]);
-        trie.insert_route(vec![10, 7, 3, 2, 7, 6]);
+        //trie.insert_route(vec![10, 7, 2, 7, 6]);
+        //trie.insert_route(vec![10, 7, 3, 2, 7, 6]);
+        trie.insert_route(vec![10, 2, 6]);
+        trie.insert_route(vec![10, 3, 2, 6]);
+        trie.insert_route(vec![6, 6, 9]);
         trie.insert_route(vec![6, 6, 9]);
         trie.insert_route(vec![9, 6, 9]);
         trie.insert_route(vec![4, 3, 3]);
@@ -58,18 +63,20 @@ impl Parser {
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
 
-        let mut ast: Option<&Rc<RefCell<TreeNode>>> = None;
+        let mut ast: Rc<RefCell<TreeNode>> = Rc::from(RefCell::from(TreeNode::new((cur_token.clone().unwrap()))));
+        let mut ast_head: Rc<RefCell<TreeNode>> = ast.clone();
 
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
         while cur_token.is_some() {
             let t = cur_token.clone().unwrap();
             parse_stack.push(t);
-            let new_tree_node = Rc::from(RefCell::from(TreeNode::new((cur_token.unwrap()))));
-            ast = Some(new_tree_node);
-            let mut res = self.reduce(parse_stack, &mut ast.clone(), reduce_count);
+            let new_node = Rc::from(RefCell::from(TreeNode::new((cur_token.unwrap()))));
+            ast.borrow_mut().set_left(new_node.clone());
+            ast = new_node;
+            let mut res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
             while res.is_ok() {
-                res = self.reduce(parse_stack, &mut ast.clone(), reduce_count);
+                res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
                 incr_red_count = true;
             }
             if incr_red_count {
@@ -89,12 +96,12 @@ impl Parser {
             cur_token = tokens_iter.next().cloned();
         }
 
-        ast.as_ref().unwrap().borrow().vlr_print();
-        ast.as_ref().unwrap().clone()
+        ast.borrow().vlr_print(true);
+        ast.clone()
         //(parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
     }
 
-    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut Option<Rc<RefCell<TreeNode>>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
+    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut Rc<RefCell<TreeNode>>, ast_head: &mut Rc<RefCell<TreeNode>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
         //
         
@@ -134,9 +141,9 @@ impl Parser {
 
                                 (*parse_stack).drain(i..j+1); 
                                 (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-                                let new_tree_node = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
-                                new_tree_node.borrow_mut().set_right(ast.as_ref().unwrap().clone());
-                                *ast = Some(new_tree_node);
+                                *ast_head = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
+                                ast_head.borrow_mut().set_right(ast.clone());
+                                *ast = ast_head.clone();
 
                                 local_stack = vec![];
                                 for x in &mut *parse_stack {
