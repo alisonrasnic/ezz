@@ -7,6 +7,7 @@ use std::env;
 mod parser;
 mod trie;
 mod tree;
+mod tests;
 
 use parser::Parser;
 use crate::parser::ParserTokenType;

@@ -37,6 +37,33 @@ impl TreeNode {
         self.right = Some(token);
     }
 
+    pub fn vlr_travel(&self, st: &mut String, is_left: bool) { 
+        if is_left {
+            st.push_str("   LEFT:\n");
+        }
+        st.push_str(&format!("---Helo: {:?} \n", self.get_value()));
+        self.rvlr_travel(st);
+        self.lvlr_travel(st);
+    }
+
+    fn lvlr_travel(&self, st: &mut String) {
+        if let Some(left) = &self.left {
+            let bor = left.borrow();
+            bor.vlr_travel(st, true);
+        } else {
+            st.push_str(" Found no nodes on LEFT ");
+        }
+    }
+
+    fn rvlr_travel(&self, st: &mut String) {
+        if let Some(right) = &self.right {
+            let bor = right.borrow();
+            bor.vlr_travel(st, false);
+        } else {
+            st.push_str(" Found no nodes on RIGHT ");
+        }
+    }
+
     pub fn vlr_print(&self, is_left: bool) {
         if is_left {
             print!("  LEFT:\n");

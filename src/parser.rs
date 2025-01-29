@@ -141,8 +141,9 @@ impl Parser {
 
                                 (*parse_stack).drain(i..j+1); 
                                 (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone()});
+                                let old_head = ast_head.clone();
                                 *ast_head = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
-                                ast_head.borrow_mut().set_right(ast.clone());
+                                ast_head.borrow_mut().set_right(old_head.clone());
                                 *ast = ast_head.clone();
 
                                 local_stack = vec![];
@@ -220,6 +221,11 @@ pub struct ParserToken {
 }
 
 impl ParserToken {
+
+    pub fn new(parse_type: ParserTokenType, literal: String) -> Self {
+        ParserToken { parse_type: parse_type, literal: literal } 
+    }
+
     pub fn get_type(&self) -> ParserTokenType {
         self.parse_type.clone()
     }
