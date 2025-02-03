@@ -37,6 +37,86 @@ impl TreeNode {
         self.right = Some(token);
     }
 
+    pub fn search(&self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        let mut sub_rax1: Option<Rc<RefCell<TreeNode>>> = None;
+        let mut sub_rax2: Option<Rc<RefCell<TreeNode>>> = None;
+        if self.value == val {
+            return Some(Rc::from(RefCell::from(self.clone())));
+        } else {
+            sub_rax1 = self.l_bfs(val.clone());
+            sub_rax2 = self.r_bfs(val.clone());
+        }
+
+        if sub_rax1.is_some() {
+            return sub_rax1;
+        }
+
+        sub_rax2
+    }
+
+    fn l_bfs(&self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        if let Some(left) = &self.left {
+            let bor = left.borrow();
+            return bor.search(val);
+        } else {
+            return None;
+        }
+    }
+
+    fn r_bfs(&self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        if let Some(right) = &self.right {
+            let bor = right.borrow();
+            return bor.search(val);
+        } else {
+            return None;
+        }
+    }
+
+    /// !!!!!! IMPORTANT 
+    ///
+    /// THIS FUNCTION IS CURRENTLY RETURNING DUPLICATE NODES INSTEAD OF THE ORIGINALS
+    pub fn search_for_parent_of(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
+        panic!("TODO: FIX DUPLICATING IN THIS FN");
+        let mut rax:  Option<Rc<RefCell<TreeNode>>> = None;
+
+        if self.value == val {
+            return &mut None;
+        } else {
+            rax = self.parent_search_l(val.clone());
+            if rax.is_none() {
+                rax = self.parent_search_r(val.clone());
+            }
+        }
+
+        &mut rax
+    }
+
+    fn parent_search_l(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
+        if let Some(left) = &self.left {
+            let mut bor = left.borrow_mut();
+            if *bor.get_value() == val {
+                return &mut Some(Rc::from(RefCell::from(self.clone())));
+            } else {
+                return bor.search_for_parent_of(val);
+            }
+        } else {
+            return &mut None;
+        }
+    }
+
+    fn parent_search_r(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
+        if let Some(right) = &self.right {
+            let mut bor = right.borrow_mut();
+            if *bor.get_value() == val {
+                return &mut Some(Rc::from(RefCell::from(self.clone())));
+            } else {
+                return bor.search_for_parent_of(val);
+            }
+        } else {
+            return &mut None;
+        }
+    }
+
     pub fn vlr_travel(&self, st: &mut String, is_left: bool) { 
         if is_left {
             st.push_str("   LEFT:\n");

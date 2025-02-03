@@ -11,6 +11,19 @@ pub mod tree_tests {
         assert_eq!(tree.borrow_mut().get_left().unwrap().borrow_mut().get_value().get_type(), ParserTokenType::Func);
         assert_eq!(tree.borrow_mut().get_right().unwrap().borrow_mut().get_value().get_type(), ParserTokenType::FuncHeader);
         assert_eq!(tree.borrow_mut().get_right().unwrap().borrow_mut().get_left().unwrap().borrow_mut().get_value().get_type(), ParserTokenType::Op);
+
+        let head_r_rc = tree.borrow_mut().get_right().unwrap().borrow_mut().get_left().unwrap();
+        assert_eq!(tree.borrow_mut().search(ParserToken::new(ParserTokenType::Op, String::from("+"))).unwrap(), head_r_rc);
+
+        tree.borrow_mut().vlr_print(true);
+        println!("\n");
+
+        let head_r_r_rc = TreeNode::new(ParserToken::new(ParserTokenType::Expr, String::from("let x = 1")));
+        head_r_rc.borrow_mut().set_right(Rc::from(RefCell::from(head_r_r_rc.clone())));
+
+        assert_eq!(Rc::ptr_eq(&(tree.borrow_mut().search_for_parent_of(head_r_r_rc.get_value().clone()).unwrap()), &head_r_rc.clone()), true);
+
+        tree.borrow_mut().vlr_print(true);
     }   
 
     fn create_tree1() -> Rc<RefCell<TreeNode>> {

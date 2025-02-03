@@ -71,9 +71,7 @@ impl Parser {
         while cur_token.is_some() {
             let t = cur_token.clone().unwrap();
             parse_stack.push(t);
-            let new_node = Rc::from(RefCell::from(TreeNode::new((cur_token.unwrap()))));
-            ast.borrow_mut().set_left(new_node.clone());
-            ast = new_node;
+            
             let mut res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
             while res.is_ok() {
                 res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
@@ -93,11 +91,22 @@ impl Parser {
                     }
                 },
             }
+
+            ast_head.borrow().vlr_print(true);
+            println!("\n---------------------------------------------------------------\n");
+
             cur_token = tokens_iter.next().cloned();
+
+            if cur_token.is_some() {
+                let new_node = Rc::from(RefCell::from(TreeNode::new((cur_token.clone().unwrap()))));
+                ast.borrow_mut().set_left(new_node.clone());
+                ast = new_node;
+            } else {
+                break; 
+            }
         }
 
-        ast.borrow().vlr_print(true);
-        ast.clone()
+        ast_head.clone()
         //(parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
     }
 
@@ -139,12 +148,68 @@ impl Parser {
                                     cur_parse_slice = parse_slice.next();
                                 }
 
+                                println!("\nSearching for: {:?}\n", parse_stack[i].clone());
+                                let mut bfs = ast_head.borrow().search(parse_stack[i].clone());
+
+                                /*
+                                 *
+                                 *
+                                 *      we need to find the root node
+                                 *      then reposition our new node there and hook up our old node
+                                 *      to that new node
+                                 *
+                                 *
+                                 */
+                                if let Some(mut v) = bfs {
+                                    let new_v = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
+                                    new_v.borrow_mut().set_right(v.clone());
+                                   
+
+                                    let mut reduce_parent = ast_head.borrow_mut().search_for_parent_of(parse_stack[i].clone());
+                                    /*
+                                     *
+                                     *      the ast_head in here needs to be replaced with
+                                     *      essentially the parent of the start point. sometimes we
+                                     *      are not looking for the behavior of this.
+                                     *
+                                     *      maybe we can code a search_for_parent_of ?
+                                     *
+                                     */
+
+                                    if v.borrow().get_value() == ast_head.borrow().get_value() {
+                                        println!("!! reassigning head to: {:?}", new_v.clone());
+                                        *ast_head = new_v.clone();
+                                    } else {
+                                        
+                                        if reduce_parent.is_some() {
+                                            let mut parent = reduce_parent.as_mut().unwrap();
+                                            println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v.clone());
+                                            if Rc::ptr_eq(&parent, &ast_head) {
+                                                ast_head.borrow_mut().set_left(new_v.clone());
+                                            } else {
+                                                parent.borrow_mut().set_left(new_v.clone());
+                                            }
+                                            println!("\nPARENT IS: {:?}\n", parent);
+                                        } else {
+                                            panic!("Should be unreachable (v): {:?}", reduce_parent.clone());
+                                        }
+                                    }
+
+                                    println!("\n\n\n\nAST_HEAD AS OF NOW:\n\n\n\n");
+                                    ast_head.borrow().vlr_print(true);
+                                    println!("\n\n\n\n\n\n\n");
+
+                                    //bfs = Some(new_v.clone());
+
+                                    *ast = new_v.clone();
+                                } else {
+                                    println!("Should be unreachable (v): {:?}", bfs.clone());
+                                }
+
                                 (*parse_stack).drain(i..j+1); 
                                 (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-                                let old_head = ast_head.clone();
-                                *ast_head = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
-                                ast_head.borrow_mut().set_right(old_head.clone());
-                                *ast = ast_head.clone();
+                                
+                                println!("\nReducing to token: {:?}\n", ParserToken { parse_type: from_u8(n), literal: literal.clone()});
 
                                 local_stack = vec![];
                                 for x in &mut *parse_stack {
