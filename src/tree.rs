@@ -75,45 +75,127 @@ impl TreeNode {
     /// !!!!!! IMPORTANT 
     ///
     /// THIS FUNCTION IS CURRENTLY RETURNING DUPLICATE NODES INSTEAD OF THE ORIGINALS
-    pub fn search_for_parent_of(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
-        panic!("TODO: FIX DUPLICATING IN THIS FN");
+    pub fn search_for_parent_of(self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        //panic!("TODO: FIX DUPLICATING IN THIS FN");
         let mut rax:  Option<Rc<RefCell<TreeNode>>> = None;
 
         if self.value == val {
-            return &mut None;
+            println!("Started at child...");
+            return None;
         } else {
-            rax = self.parent_search_l(val.clone());
+            let mut ret_opt: u8 = 0;
+
+            if self.left.is_some() {
+                println!("\nFound some on left!\n");
+                let left = self.left.as_ref().unwrap().clone();
+                let mut bor = left.borrow_mut();
+
+                if *bor.get_value() == val {
+                    println!("Found equal");
+                    ret_opt = 1; 
+                } else {
+                    println!("Continuing left search...");
+                    rax = bor.clone().search_for_parent_of(val.clone());
+                }
+            }
+
+            match ret_opt {
+                1 => return Some(Rc::from(RefCell::from(self))),
+                _ => (),
+            };
+
+            println!("Hello?");
             if rax.is_none() {
-                rax = self.parent_search_r(val.clone());
+                if self.right.is_some() {
+                    println!("Found some on right!");
+                    let right = self.right.as_ref().unwrap().clone();
+                    let mut bor = right.borrow_mut();
+
+                    if *bor.get_value() == val {
+                        println!("Found equal");
+                        ret_opt = 1;
+                    } else {
+                        println!("Continuing right search...");
+                        return bor.clone().search_for_parent_of(val.clone());
+                    }
+                } else {
+                    println!("Right was None...");
+                    return None;
+                }
+
+                rax = match ret_opt {
+                    1 => Some(Rc::from(RefCell::from(self))),
+                    _ => None,
+                };
             }
         }
 
-        &mut rax
+        rax
     }
 
-    fn parent_search_l(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
-        if let Some(left) = &self.left {
+    fn parent_search_l(self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        let mut ret_opt: u8 = 0;
+
+        if self.left.is_some() {
+            let left = self.left.as_ref().unwrap().clone();
             let mut bor = left.borrow_mut();
+
             if *bor.get_value() == val {
-                return &mut Some(Rc::from(RefCell::from(self.clone())));
+                ret_opt = 1; 
             } else {
-                return bor.search_for_parent_of(val);
+                return bor.clone().search_for_parent_of(val.clone());
             }
         } else {
-            return &mut None;
+            return None;
+        }
+
+        /*if let Some(left) = self.left {
+            let bor = left.borrow();
+            if *bor.get_value() == val {
+                ret_opt = 1; 
+            } else {
+                return bor.search_for_parent_of(val.clone());
+            }
+        } else {
+            return None;
+        }*/
+
+        match ret_opt {
+            1 => Some(Rc::from(RefCell::from(self))),
+            _ => None,
         }
     }
 
-    fn parent_search_r(&mut self, val: ParserToken) -> &mut Option<Rc<RefCell<TreeNode>>> {
-        if let Some(right) = &self.right {
+    fn parent_search_r(self, val: ParserToken) -> Option<Rc<RefCell<TreeNode>>> {
+        let mut ret_opt: u8 = 0;
+
+        if self.right.is_some() {
+            let right = self.right.as_ref().unwrap().clone();
+            let mut bor = right.borrow_mut();
+
+            if *bor.get_value() == val {
+                ret_opt = 1;
+            } else {
+                return bor.clone().search_for_parent_of(val.clone());
+            }
+        } else {
+            return None;
+        }
+
+        /*if let Some(right) = self.right.clone() {
             let mut bor = right.borrow_mut();
             if *bor.get_value() == val {
-                return &mut Some(Rc::from(RefCell::from(self.clone())));
+                ret_opt = 1;
             } else {
                 return bor.search_for_parent_of(val);
             }
         } else {
-            return &mut None;
+            return None;
+        }*/
+
+        match ret_opt {
+            1 => Some(Rc::from(RefCell::from(self))),
+            _ => None,
         }
     }
 

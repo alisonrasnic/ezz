@@ -165,7 +165,7 @@ impl Parser {
                                     new_v.borrow_mut().set_right(v.clone());
                                    
 
-                                    let mut reduce_parent = ast_head.borrow_mut().search_for_parent_of(parse_stack[i].clone());
+                                    let mut reduce_parent = ast_head.borrow_mut().clone().search_for_parent_of(parse_stack[i].clone());
                                     /*
                                      *
                                      *      the ast_head in here needs to be replaced with
