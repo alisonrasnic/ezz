@@ -4,27 +4,27 @@ use std::rc::Rc;
 use crate::parser::ParserToken;
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct TreeNode {
-    value: ParserToken,
-    left:  Option<Rc<RefCell<TreeNode>>>,
-    right: Option<Rc<RefCell<TreeNode>>>,
+pub struct TreeNode<'a> {
+    value: ParserToken<'a>,
+    left:  Option<&'a TreeNode<'a>>,
+    right: Option<&'a TreeNode<'a>>,
 }
 
 use std::any::Any;
 
-impl TreeNode {
-    pub fn new(token: ParserToken) -> Self {
+impl<'a> TreeNode<'a> {
+    pub fn new<'b>(token: ParserToken) -> Self {
         TreeNode { value: token, left: None, right: None } 
     }
 
-    pub fn get_value(& self) -> & ParserToken {
+    pub fn get_value(&'a self) -> &'a ParserToken {
         &self.value
     }
 
-    pub fn get_left(&self) -> Option<Rc<RefCell<TreeNode>>> {
-        self.left.clone()
+    pub fn get_left(&'a self) -> Option<&'a TreeNode> {
+        self.left
     }
-
+/*
     pub fn get_right(&self) -> Option<Rc<RefCell<TreeNode>>> {
         self.right.clone()
     }
@@ -103,6 +103,7 @@ impl TreeNode {
                 1 => return Some(Rc::from(RefCell::from(self))),
                 _ => (),
             };
+            ret_opt = 0;
 
             println!("Hello?");
             if rax.is_none() {
@@ -124,7 +125,7 @@ impl TreeNode {
                 }
 
                 rax = match ret_opt {
-                    1 => Some(Rc::from(RefCell::from(self))),
+                    1 => return Some(Rc::from(RefCell::from(self))),
                     _ => None,
                 };
             }
@@ -252,5 +253,5 @@ impl TreeNode {
         } else {
             print!(" Found no nodes on RIGHT ");
         }
-    }
+    }*/
 }

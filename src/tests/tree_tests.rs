@@ -13,7 +13,7 @@ pub mod tree_tests {
         assert_eq!(tree.borrow_mut().get_right().unwrap().borrow_mut().get_left().unwrap().borrow_mut().get_value().get_type(), ParserTokenType::Op);
 
         let head_r_rc = tree.borrow_mut().get_right().unwrap().borrow_mut().get_left().unwrap();
-        assert_eq!(tree.borrow_mut().search(ParserToken::new(ParserTokenType::Op, String::from("+"))).unwrap(), head_r_rc);
+        assert_eq!(Rc::ptr_eq(&(tree.borrow_mut().search(ParserToken::new(ParserTokenType::Op, String::from("+"))).unwrap()), &head_r_rc), true);
 
         tree.borrow_mut().vlr_print(true);
         println!("\n");
