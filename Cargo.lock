@@ -16,7 +16,12 @@ name = "ezz_2"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "myl_tree",
 ]
+
+[[package]]
+name = "myl_tree"
+version = "0.1.0"
 
 [[package]]
 name = "windows-sys"

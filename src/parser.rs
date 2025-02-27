@@ -1,6 +1,6 @@
 
 use crate::trie::TrieNode;
-use crate::tree::TreeNode;
+use myl_tree::{Tree, TreeNode};
 use std::any::Any;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -58,13 +58,13 @@ impl Parser {
         lexes
     }
 
-    pub fn parse(&self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Rc<RefCell<TreeNode>> {
+    pub fn parse(&self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Tree<ParserToken> {
         let mut cur_token: Option<ParserToken> = None;
         let mut tokens_iter = tokens.iter();
         cur_token = tokens_iter.next().cloned();
 
-        let mut ast: Rc<RefCell<TreeNode>> = Rc::from(RefCell::from(TreeNode::new((cur_token.clone().unwrap()))));
-        let mut ast_head: Rc<RefCell<TreeNode>> = ast.clone();
+        let mut ast_head = Tree::<ParserToken>::new();
+        let mut ast = TreeNode::new(cur_token.clone().unwrap());
 
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
@@ -92,27 +92,22 @@ impl Parser {
                 },
             }
 
-            ast_head.borrow().vlr_print(true);
-            println!("\n---------------------------------------------------------------\n");
-
             cur_token = tokens_iter.next().cloned();
 
             if cur_token.is_some() {
-                let new_node = Rc::from(RefCell::from(TreeNode::new((cur_token.clone().unwrap()))));
-                ast.borrow_mut().set_left(new_node.clone());
+                let mut new_node = TreeNode::new((cur_token.clone().unwrap()));
+                ast.set_left(&mut new_node);
                 ast = new_node;
             } else {
                 break; 
             }
         }
 
-        ast_head.clone()
-        //(parse_stack[0].parse_type == ParserTokenType::Func || parse_stack[0].parse_type == ParserTokenType::FuncList) && parse_stack.len() == 1
+        ast_head
     }
 
-    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut Rc<RefCell<TreeNode>>, ast_head: &mut Rc<RefCell<TreeNode>>, reduce_idx: u8) -> Result<&'static str, &'static str> {
+    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut TreeNode<ParserToken>, ast_head: &mut Tree<ParserToken>, reduce_idx: u8) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
-        //
         
         let mut rax = Err("failed to reduce {:?}"); 
 
@@ -149,8 +144,8 @@ impl Parser {
                                 }
 
                                 println!("\nSearching for: {:?}\n", parse_stack[i].clone());
-                                let mut bfs = ast_head.borrow().search(parse_stack[i].clone());
-
+                                let mut bfs = ast_head.search_vlr(parse_stack[i].clone());
+                                
                                 /*
                                  *
                                  *
@@ -161,11 +156,11 @@ impl Parser {
                                  *
                                  */
                                 if let Some(mut v) = bfs {
-                                    let new_v = Rc::from(RefCell::from(TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()})));
-                                    new_v.borrow_mut().set_right(v.clone());
+                                    let mut new_v = TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()});
+                                    new_v.set_right(&mut v);
                                    
 
-                                    let mut reduce_parent = ast_head.borrow_mut().clone().search_for_parent_of(parse_stack[i].clone());
+                                    let mut reduce_parent = ast_head.search_parent_vlr(parse_stack[i].clone());
                                     /*
                                      *
                                      *      the ast_head in here needs to be replaced with
@@ -176,34 +171,30 @@ impl Parser {
                                      *
                                      */
 
-                                    if v.borrow().get_value() == ast_head.borrow().get_value() {
-                                        println!("!! reassigning head to: {:?}", new_v.clone());
-                                        *ast_head = new_v.clone();
+                                    if v.get_elem() == ast_head.get_head().unwrap().get_elem() {
+                                        println!("!! reassigning head to: {:?}", new_v);
+                                        ast_head.set_head(&mut new_v);
                                     } else {
                                         
                                         if reduce_parent.is_some() {
                                             let mut parent = reduce_parent.as_mut().unwrap();
-                                            println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v.clone());
-                                            if Rc::ptr_eq(&parent, &ast_head) {
-                                                ast_head.borrow_mut().set_left(new_v.clone());
+                                            println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v);
+                                            if *parent == ast_head.get_head().unwrap() {
+                                                ast_head.set_left(&mut new_v);
                                             } else {
-                                                parent.borrow_mut().set_left(new_v.clone());
+                                                parent.set_left(&mut new_v);
                                             }
                                             println!("\nPARENT IS: {:?}\n", parent);
                                         } else {
-                                            panic!("Should be unreachable (v): {:?}", reduce_parent.clone());
+                                            panic!("Should be unreachable (v): {:?}", reduce_parent);
                                         }
                                     }
 
-                                    println!("\n\n\n\nAST_HEAD AS OF NOW:\n\n\n\n");
-                                    ast_head.borrow().vlr_print(true);
-                                    println!("\n\n\n\n\n\n\n");
-
                                     //bfs = Some(new_v.clone());
 
-                                    *ast = new_v.clone();
+                                    *ast = new_v;
                                 } else {
-                                    println!("Should be unreachable (v): {:?}", bfs.clone());
+                                    println!("Should be unreachable (!v!): {:?}", bfs);
                                 }
 
                                 (*parse_stack).drain(i..j+1); 

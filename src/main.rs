@@ -6,12 +6,11 @@ use std::env;
 
 mod parser;
 mod trie;
-mod tree;
 mod tests;
 
 use parser::Parser;
 use crate::parser::ParserTokenType;
-use crate::tree::TreeNode;
+use myl_tree::TreeNode;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -96,12 +95,13 @@ fn main() -> io::Result<()> {
     }
     println!("\n");*/
 
-    let mut binding = (&parse_res).borrow();
+    let mut binding = parse_res;
     use colored::Colorize;
     {
         let mut val: Option<ParserTokenType> = None;
         {
-            val = Some(binding.get_value().get_type());
+            let deref_head = (binding.get_head().expect("No AST Formed").get_elem()).clone();
+            val = Some(deref_head.get_type());
         }
         println!("Type is: {:?}", val);
 
@@ -111,8 +111,6 @@ fn main() -> io::Result<()> {
             println!("\n{}", "Parsing failed with errors...".red());
         }
     }
-
-    binding.vlr_print(true);
 
     Ok(())
 }
