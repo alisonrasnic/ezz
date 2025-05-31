@@ -4,6 +4,7 @@ use myl_tree::{Tree, TreeNode};
 use std::any::Any;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::ptr;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
@@ -65,6 +66,7 @@ impl Parser {
 
         let mut ast_head = Tree::<ParserToken>::new();
         let mut ast = TreeNode::new(cur_token.clone().unwrap());
+        ast_head.set_head(&mut ast);
 
         let mut reduce_count = 0 as u8;
         let mut incr_red_count = false;
@@ -95,6 +97,7 @@ impl Parser {
             cur_token = tokens_iter.next().cloned();
 
             if cur_token.is_some() {
+                println!("addition activity");
                 let mut new_node = TreeNode::new((cur_token.clone().unwrap()));
                 ast.set_left(&mut new_node);
                 ast = new_node;
@@ -144,7 +147,7 @@ impl Parser {
                                 }
 
                                 println!("\nSearching for: {:?}\n", parse_stack[i].clone());
-                                let mut bfs = ast_head.search_vlr(parse_stack[i].clone());
+                                let mut bfs = ast_head.search_vlr(&parse_stack[i]);
                                 
                                 /*
                                  *
@@ -155,12 +158,14 @@ impl Parser {
                                  *
                                  *
                                  */
+                                println!("Got here");
                                 if let Some(mut v) = bfs {
+                                    println!("valid regex start token found!\n");
                                     let mut new_v = TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-                                    new_v.set_right(&mut v);
+                                    new_v.set_right_ptr(v.get_ptr());
                                    
 
-                                    let mut reduce_parent = ast_head.search_parent_vlr(parse_stack[i].clone());
+                                    let mut reduce_parent = ast_head.search_parent_vlr(&parse_stack[i].clone());
                                     /*
                                      *
                                      *      the ast_head in here needs to be replaced with
@@ -171,7 +176,7 @@ impl Parser {
                                      *
                                      */
 
-                                    if v.get_elem() == ast_head.get_head().unwrap().get_elem() {
+                                    if v.cmp_ptr(Box::into_raw(ast_head.get_head().unwrap())) {
                                         println!("!! reassigning head to: {:?}", new_v);
                                         ast_head.set_head(&mut new_v);
                                     } else {
@@ -179,10 +184,10 @@ impl Parser {
                                         if reduce_parent.is_some() {
                                             let mut parent = reduce_parent.as_mut().unwrap();
                                             println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v);
-                                            if *parent == ast_head.get_head().unwrap() {
+                                            if parent.0.cmp_ptr(Box::into_raw(ast_head.get_head().unwrap())) {
                                                 ast_head.set_left(&mut new_v);
                                             } else {
-                                                parent.set_left(&mut new_v);
+                                                parent.0.set_node_left(&mut new_v);
                                             }
                                             println!("\nPARENT IS: {:?}\n", parent);
                                         } else {
