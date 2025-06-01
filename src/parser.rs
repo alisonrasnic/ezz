@@ -1,10 +1,6 @@
 
 use crate::trie::TrieNode;
 use myl_tree::{Tree, TreeNode};
-use std::any::Any;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::ptr;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
@@ -18,7 +14,7 @@ impl Parser {
         trie.insert_route(vec![1, 4, 1, 4, 10]);
         // the 8 is going to loop around to the 2nd 1
         trie.insert_route(vec![1, 4, 1, 4, 8, 10]);
-        let mut node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
+        let node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
         let node_2 = trie.get_child_from_route(vec![1, 4, 1]).unwrap();
         node_1.borrow_mut().insert_child(1, node_2);
         trie.insert_route(vec![4, 4, 5, 2, 3]);
@@ -98,7 +94,7 @@ impl Parser {
 
             if cur_token.is_some() {
                 println!("addition activity");
-                let mut new_node = TreeNode::new((cur_token.clone().unwrap()));
+                let mut new_node = TreeNode::new(cur_token.clone().unwrap());
                 ast.set_left(&mut new_node);
                 ast = new_node;
             } else {
@@ -109,7 +105,7 @@ impl Parser {
         ast_head
     }
 
-    pub fn reduce(&self, mut parse_stack: &mut Vec<ParserToken>, ast: &mut TreeNode<ParserToken>, ast_head: &mut Tree<ParserToken>, reduce_idx: u8) -> Result<&'static str, &'static str> {
+    pub fn reduce(&self, parse_stack: &mut Vec<ParserToken>, ast: &mut TreeNode<ParserToken>, ast_head: &mut Tree<ParserToken>, reduce_idx: u8) -> Result<&'static str, &'static str> {
         // This is where we use the trie to follow our established rules
         
         let mut rax = Err("failed to reduce {:?}"); 
@@ -129,7 +125,7 @@ impl Parser {
             while j < local_stack.len() {
                 let slice = &local_stack[i..j+1];
 
-                let mut res = cur_trie_node.get_child_from_route(slice.to_vec());
+                let res = cur_trie_node.get_child_from_route(slice.to_vec());
 
                 rax = match res {
                     Some(s) => {
@@ -138,7 +134,7 @@ impl Parser {
                         match leaf {
                             Some(n) => {    
                                 let mut literal = String::new();
-                                let mut parse_slice = &mut parse_stack[i..j+1].iter();
+                                let parse_slice = &mut parse_stack[i..j+1].iter();
 
                                 let mut cur_parse_slice = parse_slice.next();
                                 while cur_parse_slice.is_some() {
@@ -147,7 +143,7 @@ impl Parser {
                                 }
 
                                 println!("\nSearching for: {:?}\n", parse_stack[i].clone());
-                                let mut bfs = ast_head.search_vlr(&parse_stack[i]);
+                                let bfs = ast_head.search_vlr(&parse_stack[i]);
                                 
                                 /*
                                  *
@@ -159,7 +155,7 @@ impl Parser {
                                  *
                                  */
                                 println!("Got here");
-                                if let Some(mut v) = bfs {
+                                if let Some(v) = bfs {
                                     println!("valid regex start token found!\n");
                                     let mut new_v = TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()});
                                     new_v.set_right_ptr(v.get_ptr());
@@ -182,7 +178,7 @@ impl Parser {
                                     } else {
                                         
                                         if reduce_parent.is_some() {
-                                            let mut parent = reduce_parent.as_mut().unwrap();
+                                            let parent = reduce_parent.as_mut().unwrap();
                                             println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v);
                                             if parent.0.cmp_ptr(Box::into_raw(ast_head.get_head().unwrap())) {
                                                 ast_head.set_left(&mut new_v);
@@ -237,7 +233,7 @@ impl Parser {
     }
 
     fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
-        let mut typ = ParserTokenType::Id;
+        let typ = ParserTokenType::Id;
         let mut is_dig = true;
         for ch in s.chars() {
             if Self::match_ch_to_rx(|x| !x.is_digit(10), ch) {

@@ -1,7 +1,6 @@
 use std::io;
 use std::io::prelude::*;
 use std::fs::File;
-use std::rc::Rc;
 use std::env;
 
 mod parser;
@@ -10,7 +9,6 @@ mod tests;
 
 use parser::Parser;
 use crate::parser::ParserTokenType;
-use myl_tree::TreeNode;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -74,14 +72,14 @@ fn main() -> io::Result<()> {
         }
     }
 
-    let mut parser = Parser::new();
+    let parser = Parser::new();
 
     use crate::parser::ParserToken;
     let mut result: Vec<ParserToken> = vec![];
     result = parser.lex(&stack);
     let mut parse_stack: Vec<ParserToken> = vec![];
     println!("\n\nBeginning parsing...\n\n");
-    let mut parse_res = parser.parse(result, &mut parse_stack);
+    let parse_res = parser.parse(result, &mut parse_stack);
 
     println!("\n\n\n\n\n\n");
 
@@ -95,7 +93,7 @@ fn main() -> io::Result<()> {
     }
     println!("\n");*/
 
-    let mut binding = parse_res;
+    let binding = parse_res;
     use colored::Colorize;
     {
         let mut val: Option<ParserTokenType> = None;

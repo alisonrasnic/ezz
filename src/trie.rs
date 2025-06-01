@@ -6,7 +6,6 @@ pub struct TrieNode {
     options: Vec<(u8, Rc<RefCell<TrieNode>>)>,
 }
 
-use std::any::Any;
 
 impl TrieNode {
     pub fn new() -> Self {
