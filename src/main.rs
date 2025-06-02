@@ -72,7 +72,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    let parser = Parser::new();
+    let mut parser = Parser::new();
 
     use crate::parser::ParserToken;
     let mut result: Vec<ParserToken> = vec![];

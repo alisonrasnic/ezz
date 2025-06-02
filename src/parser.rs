@@ -55,181 +55,93 @@ impl Parser {
         lexes
     }
 
-    pub fn parse(&self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Tree<ParserToken> {
-        let mut cur_token: Option<ParserToken> = None;
-        let mut tokens_iter = tokens.iter();
-        cur_token = tokens_iter.next().cloned();
+    pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Tree<ParserToken> {
+        let mut tree = Tree::<ParserToken>::new();
 
-        let mut ast_head = Tree::<ParserToken>::new();
-        let mut ast = TreeNode::new(cur_token.clone().unwrap());
-        ast_head.set_head(&mut ast);
-
-        let mut reduce_count = 0 as u8;
-        let mut incr_red_count = false;
-        while cur_token.is_some() {
-            let t = cur_token.clone().unwrap();
-            parse_stack.push(t);
-            
-            let mut res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
-            while res.is_ok() {
-                res = self.reduce(parse_stack, &mut ast, &mut ast_head, reduce_count);
-                incr_red_count = true;
-            }
-            if incr_red_count {
-                reduce_count += 1;
-                incr_red_count = false;
-            }
-            match res {
-                Ok(r) => {
-                },
-
-                Err(t) => {
-                    if t != "eof" {
-                        panic!("Parsing error: {}", res.unwrap());
-                    }
-                },
-            }
-
-            cur_token = tokens_iter.next().cloned();
-
-            if cur_token.is_some() {
-                println!("addition activity");
-                let mut new_node = TreeNode::new(cur_token.clone().unwrap());
-                ast.set_left(&mut new_node);
-                ast = new_node;
-            } else {
-                break; 
-            }
-        }
-
-        ast_head
+        tree
     }
 
-    pub fn reduce(&self, parse_stack: &mut Vec<ParserToken>, ast: &mut TreeNode<ParserToken>, ast_head: &mut Tree<ParserToken>, reduce_idx: u8) -> Result<&'static str, &'static str> {
-        // This is where we use the trie to follow our established rules
+    pub fn step(&self, tokens: &Vec<ParserToken>, cur_token: &mut usize) -> Result<&'static str, &'static str> 
+    {
+        // step simply moves cur_token to our next token
+        *cur_token += 1;
+
+        Ok("Success")
+    }
+
+    pub fn full_reduce(&mut self, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
+
+        // full_reduce executes reduce repeatedly on our entire stack until the very last
+        // possibility of reducing returns Err
+
+        let mut stack_beg = 0;
+        let mut stack_wid = 0;
         
-        let mut rax = Err("failed to reduce {:?}"); 
+        while stack_wid <= parse_stack.len() {
 
-        let mut cur_trie_node = self.trie.clone();
-        let mut local_stack: Vec<u8> = vec![];
-        for x in &mut *parse_stack {
-            local_stack.push(x.parse_type.clone() as u8);
+            let result = self.reduce(&parse_stack[stack_beg..stack_beg+stack_wid]);             
 
-        }
+            if let Ok(p_type) = result {
+                
+                for i in (stack_beg..stack_wid+1).rev() {
+                    parse_stack.remove(i);
+                }
 
-        let mut i = 0;
-        let mut w = 0;
-        let mut j = i+w;
-        while w < local_stack.len() {
-        
-            while j < local_stack.len() {
-                let slice = &local_stack[i..j+1];
+                parse_stack.insert(stack_beg, ParserToken::new(p_type, Parser::string_from_p_slice(&parse_stack[stack_beg..stack_beg+stack_wid])));
 
-                let res = cur_trie_node.get_child_from_route(slice.to_vec());
+                stack_beg = 0;
+                stack_wid = 0;
 
-                rax = match res {
-                    Some(s) => {
-                        let leaf = s.borrow().get_leaf();
+            } else {
+                stack_beg += 1;
 
-                        match leaf {
-                            Some(n) => {    
-                                let mut literal = String::new();
-                                let parse_slice = &mut parse_stack[i..j+1].iter();
-
-                                let mut cur_parse_slice = parse_slice.next();
-                                while cur_parse_slice.is_some() {
-                                    literal.push_str(&cur_parse_slice.unwrap().literal);
-                                    cur_parse_slice = parse_slice.next();
-                                }
-
-                                println!("\nSearching for: {:?}\n", parse_stack[i].clone());
-                                let bfs = ast_head.search_vlr(&parse_stack[i]);
-                                
-                                /*
-                                 *
-                                 *
-                                 *      we need to find the root node
-                                 *      then reposition our new node there and hook up our old node
-                                 *      to that new node
-                                 *
-                                 *
-                                 */
-                                println!("Got here");
-                                if let Some(v) = bfs {
-                                    println!("valid regex start token found!\n");
-                                    let mut new_v = TreeNode::new(ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-                                    new_v.set_right_ptr(v.get_ptr());
-                                   
-
-                                    let mut reduce_parent = ast_head.search_parent_vlr(&parse_stack[i].clone());
-                                    /*
-                                     *
-                                     *      the ast_head in here needs to be replaced with
-                                     *      essentially the parent of the start point. sometimes we
-                                     *      are not looking for the behavior of this.
-                                     *
-                                     *      maybe we can code a search_for_parent_of ?
-                                     *
-                                     */
-
-                                    if v.cmp_ptr(Box::into_raw(ast_head.get_head().unwrap())) {
-                                        println!("!! reassigning head to: {:?}", new_v);
-                                        ast_head.set_head(&mut new_v);
-                                    } else {
-                                        
-                                        if reduce_parent.is_some() {
-                                            let parent = reduce_parent.as_mut().unwrap();
-                                            println!("\nPARENT IS: {:?} || INSERTING INTO LEFT: {:?}\n", parent, new_v);
-                                            if parent.0.cmp_ptr(Box::into_raw(ast_head.get_head().unwrap())) {
-                                                ast_head.set_left(&mut new_v);
-                                            } else {
-                                                parent.0.set_node_left(&mut new_v);
-                                            }
-                                            println!("\nPARENT IS: {:?}\n", parent);
-                                        } else {
-                                            panic!("Should be unreachable (v): {:?}", reduce_parent);
-                                        }
-                                    }
-
-                                    //bfs = Some(new_v.clone());
-
-                                    *ast = new_v;
-                                } else {
-                                    println!("Should be unreachable (!v!): {:?}", bfs);
-                                }
-
-                                (*parse_stack).drain(i..j+1); 
-                                (*parse_stack).insert(i as usize, ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-                                
-                                println!("\nReducing to token: {:?}\n", ParserToken { parse_type: from_u8(n), literal: literal.clone()});
-
-                                local_stack = vec![];
-                                for x in &mut *parse_stack {
-                                    local_stack.push(x.parse_type.clone() as u8);
-                                }
-                                i = 0;
-                                w = 0;
-                                j = i+w;
-
-                                Ok("success")
-                            },
-                            None => Err("eof"),
-                        }
-                    },
-                    None    => {Err("eof")}
-                };
-
-                i += 1;
-                j = i+w;
-
+                if stack_beg >= parse_stack.len() {
+                    stack_beg = 0;
+                    stack_wid += 1;
+                }
             }
+        } 
 
-            w += 1;
-            i = 0;
-            j = i+w;
+        Ok("Success")
+    }
+
+    fn reduce(&mut self, slice: &[ParserToken]) -> Result<ParserTokenType, &'static str> {
+        // reduce does a single reduce of a stack of tokens
+        let mut types: Vec<u8> = vec![];
+        for t in slice {
+
+            types.push(t.get_type() as u8);
         }
 
-        rax
+        let res = self.get_regex(types);
+
+        if let Some(v) = res {
+            return Ok(v);
+        } else {
+            return Err("Failed to reduce");
+        }
+    }
+
+    fn string_from_p_slice(slice: &[ParserToken]) -> String {
+        let mut ret_string = String::new();
+        for t in slice {
+            ret_string.push_str(t.get_literal().leak());
+        }
+
+        ret_string
+    }
+
+    fn get_regex(&mut self, vals: Vec<u8>) -> Option<ParserTokenType> {
+        use std::rc::Rc;
+        let r = self.trie.get_child_from_route(vals);
+
+        if let Some(s) = r {
+            if let Ok(trie_node) = Rc::try_unwrap(s) {;
+                return Some(ParserTokenType::from_u8(trie_node.borrow().get_leaf().unwrap()));
+            }
+        }
+
+        None
     }
 
     fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
@@ -286,6 +198,12 @@ impl ParserToken {
     pub fn get_type(&self) -> ParserTokenType {
         self.parse_type.clone()
     }
+
+    pub fn get_literal(&self) -> String {
+
+        self.literal.clone()
+
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -302,18 +220,20 @@ pub enum ParserTokenType {
     FuncHeader=10,
 }
 
-pub fn from_u8(num: u8) -> ParserTokenType {
-    match num {
-        1 => ParserTokenType::Type,
-        2 => ParserTokenType::Value,
-        3 => ParserTokenType::Expr,
-        4 => ParserTokenType::Id,
-        5 => ParserTokenType::Op,
-        6 => ParserTokenType::Func,
-        7 => ParserTokenType::Delim,
-        8 => ParserTokenType::Comma,
-        9 => ParserTokenType::FuncList,
-        10 => ParserTokenType::FuncHeader,
-        _ => ParserTokenType::Id,
+impl ParserTokenType {
+    pub fn from_u8(num: u8) -> ParserTokenType {
+        match num {
+            1 => ParserTokenType::Type,
+            2 => ParserTokenType::Value,
+            3 => ParserTokenType::Expr,
+            4 => ParserTokenType::Id,
+            5 => ParserTokenType::Op,
+            6 => ParserTokenType::Func,
+            7 => ParserTokenType::Delim,
+            8 => ParserTokenType::Comma,
+            9 => ParserTokenType::FuncList,
+            10 => ParserTokenType::FuncHeader,
+            _ => ParserTokenType::Id,
+        }
     }
 }
