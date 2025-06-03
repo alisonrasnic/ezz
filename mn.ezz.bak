@@ -1,0 +1,5 @@
+i32 mn i32 args 
+	let str = "Hello, world!"
+	put str
+	1337
+

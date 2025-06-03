@@ -58,6 +58,16 @@ impl Parser {
     pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Tree<ParserToken> {
         let mut tree = Tree::<ParserToken>::new();
 
+        let mut cur_tok_idx: usize = 0;
+
+        while cur_tok_idx < tokens.len() {
+            parse_stack.push(tokens[cur_tok_idx].clone());
+            self.full_reduce(parse_stack);
+            self.step(&tokens, &mut cur_tok_idx);
+        }
+
+        tree.set_head(&mut TreeNode::new(parse_stack[0].clone()));
+
         tree
     }
 
@@ -75,14 +85,19 @@ impl Parser {
         // possibility of reducing returns Err
 
         let mut stack_beg = 0;
-        let mut stack_wid = 0;
+        let mut stack_wid = 1;
         
         while stack_wid <= parse_stack.len() {
 
-            let result = self.reduce(&parse_stack[stack_beg..stack_beg+stack_wid]);             
+            let mut end_idx = stack_beg+stack_wid;
+            if end_idx > parse_stack.len() {
+                end_idx = parse_stack.len()-1;
+            }
+
+            let result = self.reduce(&parse_stack[stack_beg..end_idx]);             
 
             if let Ok(p_type) = result {
-                
+                println!("Reduction!"); 
                 for i in (stack_beg..stack_wid+1).rev() {
                     parse_stack.remove(i);
                 }
@@ -93,6 +108,7 @@ impl Parser {
                 stack_wid = 0;
 
             } else {
+                println!("Error: {:?}", result);
                 stack_beg += 1;
 
                 if stack_beg >= parse_stack.len() {
@@ -109,7 +125,7 @@ impl Parser {
         // reduce does a single reduce of a stack of tokens
         let mut types: Vec<u8> = vec![];
         for t in slice {
-
+            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type() as u8, t.get_literal());
             types.push(t.get_type() as u8);
         }
 
@@ -131,6 +147,7 @@ impl Parser {
         ret_string
     }
 
+    // borken!!
     fn get_regex(&mut self, vals: Vec<u8>) -> Option<ParserTokenType> {
         use std::rc::Rc;
         let r = self.trie.get_child_from_route(vals);

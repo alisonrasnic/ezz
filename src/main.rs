@@ -95,7 +95,7 @@ fn main() -> io::Result<()> {
 
     let binding = parse_res;
     use colored::Colorize;
-    {
+    /*{
         let mut val: Option<ParserTokenType> = None;
         {
             let deref_head = (binding.get_head().expect("No AST Formed").get_elem()).clone();
@@ -108,7 +108,7 @@ fn main() -> io::Result<()> {
         } else {
             println!("\n{}", "Parsing failed with errors...".red());
         }
-    }
+    }*/
 
     Ok(())
 }
