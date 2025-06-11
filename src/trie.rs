@@ -89,7 +89,7 @@ impl TrieNode {
             {
                 let will_loop = Rc::ptr_eq(&rcc, &x.1);
                 if will_loop {
-                    continue;
+                    break;
                 }
             }
             if x.1.borrow().clone().options.len() == 0 {

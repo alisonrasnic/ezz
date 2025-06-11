@@ -1,44 +1,26 @@
 
 use crate::trie::TrieNode;
+use crate::tree_generator::TreeGenerator;
 use myl_tree::{Tree, TreeNode};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
-    trie: TrieNode,
+    trie_1: TrieNode,
+    trie_2: TrieNode,
+    vars:   Vec<String>,
+    funcs:  Vec<String>,
 }
 
 impl Parser {
     pub fn new() -> Parser {
-        let mut trie = TrieNode::new();
-        trie.insert_route(vec![2, 5, 2, 3]);
-        trie.insert_route(vec![1, 4, 1, 4, 10]);
-        // the 8 is going to loop around to the 2nd 1
-        trie.insert_route(vec![1, 4, 1, 4, 8, 10]);
-        let node_1 = trie.get_child_from_route(vec![1, 4, 1, 4, 8]).unwrap();
-        let node_2 = trie.get_child_from_route(vec![1, 4, 1]).unwrap();
-        node_1.borrow_mut().insert_child(1, node_2);
-        trie.insert_route(vec![4, 4, 5, 2, 3]);
-        trie.insert_route(vec![4, 2, 3]);
-        //trie.insert_route(vec![3, 7, 3]);
-        trie.insert_route(vec![3, 3]);
-        trie.insert_route(vec![3, 5, 3, 3]);
-        //trie.insert_route(vec![10, 7, 3]);
-        trie.insert_route(vec![10, 3]);
-        trie.insert_route(vec![10, 4, 3, 2, 6]);
-        let node_3 = trie.get_child_from_route(vec![10, 3]).unwrap();
-        node_3.clone().borrow_mut().insert_child(3, node_3);
-        //trie.insert_route(vec![10, 7, 2, 7, 6]);
-        //trie.insert_route(vec![10, 7, 3, 2, 7, 6]);
-        trie.insert_route(vec![10, 2, 6]);
-        trie.insert_route(vec![10, 3, 2, 6]);
-        trie.insert_route(vec![6, 6, 9]);
-        trie.insert_route(vec![6, 6, 9]);
-        trie.insert_route(vec![9, 6, 9]);
-        trie.insert_route(vec![4, 3, 3]);
-        trie.insert_route(vec![4, 4, 3]);
-        trie.insert_route(vec![3, 5, 2, 3]);
+        let mut trie_1 = TrieNode::new();
+        trie_1.insert_route(vec![1, 4, 10]);
 
-        Parser { trie: trie }
+        trie_1.insert_route(vec![10, 10, 10]);
+        
+        trie_1.insert_route(vec![5, 2, 12]);
+
+        Parser { trie_1: trie_1, trie_2: TrieNode::new(), vars: vec![], funcs: vec![String::from("let"), String::from("put")] }
     }
 
     // lex is necessary to convert from string into a token
@@ -55,20 +37,14 @@ impl Parser {
         lexes
     }
 
-    pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>) -> Tree<ParserToken> {
-        let mut tree = Tree::<ParserToken>::new();
-
+    pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>, tree_generator: &mut TreeGenerator) {
         let mut cur_tok_idx: usize = 0;
 
         while cur_tok_idx < tokens.len() {
             parse_stack.push(tokens[cur_tok_idx].clone());
-            self.full_reduce(parse_stack);
+            self.full_reduce_1(parse_stack, tree, tree_generator);
             self.step(&tokens, &mut cur_tok_idx);
         }
-
-        tree.set_head(&mut TreeNode::new(parse_stack[0].clone()));
-
-        tree
     }
 
     pub fn step(&self, tokens: &Vec<ParserToken>, cur_token: &mut usize) -> Result<&'static str, &'static str> 
@@ -79,7 +55,7 @@ impl Parser {
         Ok("Success")
     }
 
-    pub fn full_reduce(&mut self, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
+    pub fn full_reduce_1(&mut self, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>, tree_generator: &mut TreeGenerator) -> Result<&'static str, &'static str> {
 
         // full_reduce executes reduce repeatedly on our entire stack until the very last
         // possibility of reducing returns Err
@@ -87,7 +63,7 @@ impl Parser {
         let mut stack_beg = 0;
         let mut stack_wid = 1;
         
-        while stack_wid <= parse_stack.len() {
+        while stack_wid < parse_stack.len() {
 
             let mut end_idx = stack_beg+stack_wid;
             if end_idx > parse_stack.len() {
@@ -95,28 +71,59 @@ impl Parser {
             }
 
             let result = self.reduce(&parse_stack[stack_beg..end_idx]);             
+            let literal = Parser::string_from_p_slice(&parse_stack[stack_beg..end_idx]);
 
             if let Ok(p_type) = result {
                 println!("Reduction!"); 
-                for i in (stack_beg..stack_wid+1).rev() {
-                    parse_stack.remove(i);
+
+                use std::ptr::NonNull;
+
+                for i in (stack_beg..end_idx).rev() {
+                    let mut tree_new_node = tree_generator.take_mut(parse_stack.remove(i));
+                    //tree.set_head(tree_new_node);
+                    println!("Hi");
+                    tree.print_vlr();
+                    println!("Bye");
+                    if end_idx > 0 { 
+                        end_idx-=1;
+                    }
                 }
 
-                parse_stack.insert(stack_beg, ParserToken::new(p_type, Parser::string_from_p_slice(&parse_stack[stack_beg..stack_beg+stack_wid])));
+                parse_stack.insert(stack_beg, ParserToken::new(p_type.clone(), literal.clone()));
+                let mut tree_reduction_node = tree_generator.take_mut(ParserToken::new(p_type, literal));
+
+                tree.set_head(tree_reduction_node);
+                std::mem::forget(tree_reduction_node);
 
                 stack_beg = 0;
                 stack_wid = 0;
 
             } else {
-                println!("Error: {:?}", result);
+               // println!("Error: {:?}", result);
                 stack_beg += 1;
+                //println!("beg: {}, wid: {}, parse_stack_len: {}", stack_beg, stack_wid, parse_stack.len());
 
                 if stack_beg >= parse_stack.len() {
                     stack_beg = 0;
                     stack_wid += 1;
+                    println!("beg: {}, wid: {}, parse_stack_len: {}", stack_beg, stack_wid, parse_stack.len());
                 }
             }
         } 
+
+        Ok("Success")
+    }
+
+    pub fn full_reduce_2(&mut self, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>) -> Result<&'static str, &'static str> {
+
+        // pass 2
+        //   here we are processing fnheaders to find their name (2nd token in the tree)
+        //   add to the list
+        //
+        //   also adding vars definitions to our list
+        //     this includes func parameters
+        //     scope analysis can be done through the tree formed
+        //
 
         Ok("Success")
     }
@@ -125,7 +132,7 @@ impl Parser {
         // reduce does a single reduce of a stack of tokens
         let mut types: Vec<u8> = vec![];
         for t in slice {
-            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type() as u8, t.get_literal());
+            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type(), t.get_literal());
             types.push(t.get_type() as u8);
         }
 
@@ -142,6 +149,7 @@ impl Parser {
         let mut ret_string = String::new();
         for t in slice {
             ret_string.push_str(t.get_literal().leak());
+            ret_string.push(' ');
         }
 
         ret_string
@@ -150,12 +158,16 @@ impl Parser {
     // borken!!
     fn get_regex(&mut self, vals: Vec<u8>) -> Option<ParserTokenType> {
         use std::rc::Rc;
-        let r = self.trie.get_child_from_route(vals);
+        let r = self.trie_1.get_child_from_route(vals);
 
-        if let Some(s) = r {
-            if let Ok(trie_node) = Rc::try_unwrap(s) {;
+        if let Some(ref s) = r {
+            if let Ok(trie_node) = Rc::try_unwrap(s.into()) {;
                 return Some(ParserTokenType::from_u8(trie_node.borrow().get_leaf().unwrap()));
+            } else {
+                panic!("Rc unwrap failure: {:?}", r.unwrap().borrow() );
             }
+        } else {
+            //println!("Oof");
         }
 
         None
@@ -235,6 +247,8 @@ pub enum ParserTokenType {
     Comma=8,
     FuncList=9,
     FuncHeader=10,
+    Declare=11,
+    Assignment=12,
 }
 
 impl ParserTokenType {
@@ -250,6 +264,8 @@ impl ParserTokenType {
             8 => ParserTokenType::Comma,
             9 => ParserTokenType::FuncList,
             10 => ParserTokenType::FuncHeader,
+            11 => ParserTokenType::Declare,
+            12 => ParserTokenType::Assignment,
             _ => ParserTokenType::Id,
         }
     }

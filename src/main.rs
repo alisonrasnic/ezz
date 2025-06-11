@@ -5,10 +5,13 @@ use std::env;
 
 mod parser;
 mod trie;
+mod tree_generator;
 mod tests;
 
 use parser::Parser;
 use crate::parser::ParserTokenType;
+use crate::tree_generator::TreeGenerator;
+use myl_tree::Tree;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -79,7 +82,9 @@ fn main() -> io::Result<()> {
     result = parser.lex(&stack);
     let mut parse_stack: Vec<ParserToken> = vec![];
     println!("\n\nBeginning parsing...\n\n");
-    let parse_res = parser.parse(result, &mut parse_stack);
+    let mut tree: Tree<ParserToken> = Tree::new();
+    let mut tree_generator = TreeGenerator::new();
+    parser.parse(result, &mut parse_stack, &mut tree, &mut tree_generator);
 
     println!("\n\n\n\n\n\n");
 
@@ -93,22 +98,11 @@ fn main() -> io::Result<()> {
     }
     println!("\n");*/
 
-    let binding = parse_res;
     use colored::Colorize;
-    /*{
-        let mut val: Option<ParserTokenType> = None;
-        {
-            let deref_head = (binding.get_head().expect("No AST Formed").get_elem()).clone();
-            val = Some(deref_head.get_type());
-        }
-        println!("Type is: {:?}", val);
-
-        if val == Some(ParserTokenType::Func) {
-            println!("\n{}", "Parsing successful!".green());
-        } else {
-            println!("\n{}", "Parsing failed with errors...".red());
-        }
-    }*/
+    {
+        //parse_res.print_vlr();
+        println!("{:?}", tree);
+    }
 
     Ok(())
 }
