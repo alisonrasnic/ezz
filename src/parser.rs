@@ -25,17 +25,7 @@ impl Parser {
 
     // lex is necessary to convert from string into a token
     //  as opposed to the parse which changes tokens into simpler tokens
-    pub fn lex(&self, tokens: &Vec<String>) -> Vec<ParserToken> {
-        let mut lexes: Vec<ParserToken> = vec![];
-        
-        for s in tokens {
-            if *s != String::new() {
-                lexes.push(ParserToken { parse_type: Self::str_to_lex(s.clone().leak()).expect("Failed to lex token"), literal: s.clone() });
-            }
-        }
-
-        lexes
-    }
+    
 
     pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>, tree_generator: &mut TreeGenerator) {
         let mut cur_tok_idx: usize = 0;
@@ -78,9 +68,14 @@ impl Parser {
 
                 use std::ptr::NonNull;
 
+                let tok_start = parse_stack[stack_beg].start;
+                let tok_end   = parse_stack[end_idx].end;
+                let tok_line  = parse_stack[stack_beg].line;
+
                 for i in (stack_beg..end_idx).rev() {
-                    let mut tree_new_node = tree_generator.take_mut(parse_stack.remove(i));
-                    //tree.set_head(tree_new_node);
+                    let token = parse_stack.remove(i);
+                    let mut tree_new_node = tree_generator.take_mut(token);
+                    tree.set_head(tree_new_node);
                     println!("Hi");
                     tree.print_vlr();
                     println!("Bye");
@@ -89,11 +84,14 @@ impl Parser {
                     }
                 }
 
+                // for creation of parser tokens, we are going to require a registry of
+                // parsertokens to keep track of their IDs
                 parse_stack.insert(stack_beg, ParserToken::new(p_type.clone(), literal.clone()));
                 let mut tree_reduction_node = tree_generator.take_mut(ParserToken::new(p_type, literal));
 
                 tree.set_head(tree_reduction_node);
                 std::mem::forget(tree_reduction_node);
+                tree.print_vlr();
 
                 stack_beg = 0;
                 stack_wid = 0;
@@ -128,11 +126,11 @@ impl Parser {
         Ok("Success")
     }
 
-    fn reduce(&mut self, slice: &[ParserToken]) -> Result<ParserTokenType, &'static str> {
+    fn reduce(&mut self, slice: &[ParserToken], path: PathBuf) -> Result<ParserTokenType, &'static str> {
         // reduce does a single reduce of a stack of tokens
         let mut types: Vec<u8> = vec![];
         for t in slice {
-            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type(), t.get_literal());
+            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type(), t.get_literal(path));
             types.push(t.get_type() as u8);
         }
 
@@ -145,10 +143,10 @@ impl Parser {
         }
     }
 
-    fn string_from_p_slice(slice: &[ParserToken]) -> String {
+    fn string_from_p_slice(slice: &[ParserToken], path: PathBuf) -> String {
         let mut ret_string = String::new();
         for t in slice {
-            ret_string.push_str(t.get_literal().leak());
+            ret_string.push_str(t.get_literal(path));
             ret_string.push(' ');
         }
 
@@ -173,69 +171,54 @@ impl Parser {
         None
     }
 
-    fn str_to_lex(s: &'static str) -> Option<ParserTokenType> {
-        let typ = ParserTokenType::Id;
-        let mut is_dig = true;
-        for ch in s.chars() {
-            if Self::match_ch_to_rx(|x| !x.is_digit(10), ch) {
-                is_dig = false;
-            }
-
-            if is_dig {
-                return Some(ParserTokenType::Value);
-            }
-        }
-
-        if Self::match_str_to_rx(|st| st.starts_with("\"") && st.ends_with("\""), &s.to_owned()) {
-            return Some(ParserTokenType::Value);
-        } else if Self::match_str_to_rx(|st| *st == String::from("$") || *st == String::from("i32") || *st == String::from("u32") || *st == String::from("string") || *st == String::from("bool"), &s.to_owned()) {
-            return Some(ParserTokenType::Type);
-        } else if Self::match_str_to_rx(|st| *st == String::from("{") || *st == String::from("}") || *st == String::from(";"), &s.to_owned()) {
-            return Some(ParserTokenType::Delim);
-        } else if Self::match_str_to_rx(|st| *st == String::from("=") || *st == String::from("+") || *st == String::from("-") || *st == String::from("*") || *st == String::from("/"), &s.to_owned()) {
-            return Some(ParserTokenType::Op);
-        } else {
-            return Some(ParserTokenType::Id);
-        }
-    }
-
-    fn match_str_to_rx<F>(f: F, st: &String) -> bool where
-        F: Fn(&String) -> bool {
-        
-        f(st)
-    }
-
-    fn match_ch_to_rx<F>(f: F, st: char) -> bool where
-        F: Fn(char) -> bool {
-        
-        f(st)
-    }
+    
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ParserToken {
+    id:         usize,
     parse_type: ParserTokenType,
-    literal: String,
+    start:      usize,
+    end:        usize,
+    line:       usize,
 }
 
 impl ParserToken {
 
-    pub fn new(parse_type: ParserTokenType, literal: String) -> Self {
-        ParserToken { parse_type: parse_type, literal: literal } 
+    pub fn new(parse_type: ParserTokenType, id: usize, start: usize, end: usize, line: usize) -> Self {
+        ParserToken { parse_type: parse_type, id: id, start: start, end: end, line: line}
     }
 
     pub fn get_type(&self) -> ParserTokenType {
         self.parse_type.clone()
     }
+    
+    pub fn get_start(&self) -> usize {
+        self.start
+    }
 
-    pub fn get_literal(&self) -> String {
+    pub fn get_end(&self) -> usize {
+        self.end
+    }
 
-        self.literal.clone()
+    pub fn get_line(&self) -> usize {
+        self.line
+    }
 
+    pub fn get_literal(&self, path_buf: PathBuf) -> &'static str {
+        
+        let msg = fs::read_to_string(path_buf);
+        if let Err(e) = msg {
+
+            panic!("{:?}", e);
+
+        }
+
+        msg.unwrap()[self.start..start.end].leak() 
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ParserTokenType {
     Value=2,
     Expr=3,

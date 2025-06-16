@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::env;
 
+mod lexer;
 mod parser;
 mod trie;
 mod tree_generator;
