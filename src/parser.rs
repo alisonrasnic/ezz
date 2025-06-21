@@ -1,7 +1,11 @@
 
 use crate::trie::TrieNode;
 use crate::tree_generator::TreeGenerator;
+use crate::compiler_context::CompilerContext;
+
 use myl_tree::{Tree, TreeNode};
+
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
@@ -27,12 +31,12 @@ impl Parser {
     //  as opposed to the parse which changes tokens into simpler tokens
     
 
-    pub fn parse(&mut self, tokens: Vec<ParserToken>, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>, tree_generator: &mut TreeGenerator) {
+    pub fn parse(&mut self, tokens: Vec<ParserToken>, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) {
         let mut cur_tok_idx: usize = 0;
 
         while cur_tok_idx < tokens.len() {
             parse_stack.push(tokens[cur_tok_idx].clone());
-            self.full_reduce_1(parse_stack, tree, tree_generator);
+            self.full_reduce_1(context, parse_stack);
             self.step(&tokens, &mut cur_tok_idx);
         }
     }
@@ -45,7 +49,7 @@ impl Parser {
         Ok("Success")
     }
 
-    pub fn full_reduce_1(&mut self, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>, tree_generator: &mut TreeGenerator) -> Result<&'static str, &'static str> {
+    pub fn full_reduce_1(&mut self, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
 
         // full_reduce executes reduce repeatedly on our entire stack until the very last
         // possibility of reducing returns Err
@@ -60,8 +64,9 @@ impl Parser {
                 end_idx = parse_stack.len()-1;
             }
 
-            let result = self.reduce(&parse_stack[stack_beg..end_idx]);             
-            let literal = Parser::string_from_p_slice(&parse_stack[stack_beg..end_idx]);
+            let tok_id = parse_stack[stack_beg].id;
+            let result = self.reduce(&parse_stack[stack_beg..end_idx], &context.files[tok_id]);             
+            let literal = Parser::string_from_p_slice(&parse_stack[stack_beg..end_idx], &context.files[tok_id]);
 
             if let Ok(p_type) = result {
                 println!("Reduction!"); 
@@ -74,10 +79,10 @@ impl Parser {
 
                 for i in (stack_beg..end_idx).rev() {
                     let token = parse_stack.remove(i);
-                    let mut tree_new_node = tree_generator.take_mut(token);
-                    tree.set_head(tree_new_node);
+                    let mut tree_new_node = context.gen.take_mut(token);
+                    context.tree.set_head(tree_new_node);
                     println!("Hi");
-                    tree.print_vlr();
+                    context.tree.print_vlr();
                     println!("Bye");
                     if end_idx > 0 { 
                         end_idx-=1;
@@ -86,12 +91,12 @@ impl Parser {
 
                 // for creation of parser tokens, we are going to require a registry of
                 // parsertokens to keep track of their IDs
-                parse_stack.insert(stack_beg, ParserToken::new(p_type.clone(), literal.clone()));
-                let mut tree_reduction_node = tree_generator.take_mut(ParserToken::new(p_type, literal));
+                parse_stack.insert(stack_beg, ParserToken::new(p_type.clone(), tok_id, tok_start, tok_end, tok_line));
+                let mut tree_reduction_node = context.gen.take_mut(ParserToken::new(p_type, tok_id, tok_start, tok_end, tok_line));
 
-                tree.set_head(tree_reduction_node);
+                context.tree.set_head(tree_reduction_node);
                 std::mem::forget(tree_reduction_node);
-                tree.print_vlr();
+                context.tree.print_vlr();
 
                 stack_beg = 0;
                 stack_wid = 0;
@@ -126,7 +131,7 @@ impl Parser {
         Ok("Success")
     }
 
-    fn reduce(&mut self, slice: &[ParserToken], path: PathBuf) -> Result<ParserTokenType, &'static str> {
+    fn reduce(&mut self, slice: &[ParserToken], path: &PathBuf) -> Result<ParserTokenType, &'static str> {
         // reduce does a single reduce of a stack of tokens
         let mut types: Vec<u8> = vec![];
         for t in slice {
@@ -143,7 +148,7 @@ impl Parser {
         }
     }
 
-    fn string_from_p_slice(slice: &[ParserToken], path: PathBuf) -> String {
+    fn string_from_p_slice(slice: &[ParserToken], path: &PathBuf) -> String {
         let mut ret_string = String::new();
         for t in slice {
             ret_string.push_str(t.get_literal(path));
@@ -205,16 +210,16 @@ impl ParserToken {
         self.line
     }
 
-    pub fn get_literal(&self, path_buf: PathBuf) -> &'static str {
+    pub fn get_literal(&self, path_buf: &PathBuf) -> &'static str {
         
-        let msg = fs::read_to_string(path_buf);
+        let msg = std::fs::read_to_string(path_buf);
         if let Err(e) = msg {
 
             panic!("{:?}", e);
 
         }
 
-        msg.unwrap()[self.start..start.end].leak() 
+        msg.unwrap()[self.start..self.end].to_owned().leak()
     }
 }
 

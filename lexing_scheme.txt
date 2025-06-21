@@ -1,0 +1,18 @@
+i32 mn$args
+	put"Hello, world!"
+	0
+
+go until we reach whitespace or until it can no longer be a token!
+(also, if we reach a quote with no backslash before it, we continue until we find another quote, for strings. Or error if not.)
+
+i32 -> Type
+mn -> mn$
+mn$ cannot be one token, so it is split
+mn as ID
+$ ID'd as type
+args -> ID
+put -> put"
+put" cannot be one token, so it is split
+put -> Fn
+"Hello, world!" -> Value
+0 -> Value

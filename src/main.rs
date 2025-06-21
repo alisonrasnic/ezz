@@ -2,7 +2,9 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 use std::env;
+use std::path::PathBuf;
 
+mod compiler_context;
 mod lexer;
 mod parser;
 mod trie;
@@ -10,18 +12,25 @@ mod tree_generator;
 mod tests;
 
 use parser::Parser;
-use crate::parser::ParserTokenType;
-use crate::tree_generator::TreeGenerator;
+use parser::ParserTokenType;
+use tree_generator::TreeGenerator;
+use compiler_context::CompilerContext;
+use lexer::Lexer;
+
 use myl_tree::Tree;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
+    let mut path = PathBuf::new();
+    path.push(&args[1]);
     let mut f = File::open(args[1].as_str())?;
     let mut buffer = [0; 1000];
     let mut stack: Vec<String> = vec![String::new()];
 
     let _ = f.read(&mut buffer)?;
 
+
+    let mut context = CompilerContext::ezz_default();
     /*
      *
      * so for this section we need to account for certain things
@@ -76,16 +85,21 @@ fn main() -> io::Result<()> {
         }
     }
 
+    let mut lexer  = Lexer::new();
     let mut parser = Parser::new();
 
     use crate::parser::ParserToken;
     let mut result: Vec<ParserToken> = vec![];
-    result = parser.lex(&stack);
+
+    result = lexer.lex(std::str::from_utf8(&buffer).unwrap().to_owned(), path, &mut context);
+
+    println!("\n\nLexing result: \n{:?}\n\n", result);
+
     let mut parse_stack: Vec<ParserToken> = vec![];
-    println!("\n\nBeginning parsing...\n\n");
     let mut tree: Tree<ParserToken> = Tree::new();
-    let mut tree_generator = TreeGenerator::new();
-    parser.parse(result, &mut parse_stack, &mut tree, &mut tree_generator);
+
+   /* println!("\n\nBeginning parsing...\n\n");
+    parser.parse(result, &mut context, &mut parse_stack);
 
     println!("\n\n\n\n\n\n");
 
@@ -103,7 +117,7 @@ fn main() -> io::Result<()> {
     {
         //parse_res.print_vlr();
         println!("{:?}", tree);
-    }
+    }*/
 
     Ok(())
 }

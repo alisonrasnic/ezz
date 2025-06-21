@@ -1,14 +1,23 @@
-i32 mn $ args {
-	put "Hello, world!"
-	let x = 0
-	put "This is Ezz lang!"
-	1337
-}
+u1 parseNum str input
+    for mut i, 0, input.len
+        let c = str[i]
+        if !c.is_digit or input.count '.' > 1
+            return false
+        end
+    end
+    
+    true
 
-i32 new_func i32 inp {
-	0
-}
-
-string foo i32 inp {
-	"Hi"
-}
+i32 mn $args 
+    
+    mut x = ""
+    
+    put "Hello, please enter a number: "
+    inp x
+    if parseNum x.trim
+        put "That was a number!"
+    else
+        put "That wasn't a number!!! >:("
+    end
+    
+    1337
