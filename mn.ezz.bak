@@ -1,4 +1,4 @@
-i32 mn $ args 💖
-	let str = "Hello, world!"
-	put str
-	1337
+i32 mn$args
+	let x = 5.5
+	put "Hello, world!" 
+	0

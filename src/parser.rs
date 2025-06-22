@@ -225,7 +225,6 @@ impl ParserToken {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ParserTokenType {
-    Value=2,
     Expr=3,
     Func=6,
     Id=4,
@@ -237,13 +236,17 @@ pub enum ParserTokenType {
     FuncHeader=10,
     Declare=11,
     Assignment=12,
+    Str=13,
+    Ch=14,
+    Num=15,
+    Float=16,
+    Bool=17,
 }
 
 impl ParserTokenType {
     pub fn from_u8(num: u8) -> ParserTokenType {
         match num {
             1 => ParserTokenType::Type,
-            2 => ParserTokenType::Value,
             3 => ParserTokenType::Expr,
             4 => ParserTokenType::Id,
             5 => ParserTokenType::Op,
@@ -254,7 +257,16 @@ impl ParserTokenType {
             10 => ParserTokenType::FuncHeader,
             11 => ParserTokenType::Declare,
             12 => ParserTokenType::Assignment,
+            13 => ParserTokenType::Str,
+            14 => ParserTokenType::Ch,
+            15 => ParserTokenType::Num,
+            16 => ParserTokenType::Float,
+            17 => ParserTokenType::Bool,
             _ => ParserTokenType::Id,
         }
+    }
+
+    pub fn is_value(&self) -> bool {
+       (*self as u8) >= 13 && (*self as u8) <= 17
     }
 }

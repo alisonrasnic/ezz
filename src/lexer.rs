@@ -18,40 +18,51 @@ impl Lexer {
         let text_len   = text_chars.clone().count();
 
         let mut line_count = 0;
-        let mut cur_line_char = 0;
+        let mut col = 0;
         let mut lexes: Vec<ParserToken> = vec![];
         
         let mut start: usize = 0;
+
+        let mut id = self.register(path.clone(), context).expect("Could not register path");
 
         for i in 1..(text_len+1) {
             let cur_char = text_chars.next().unwrap();
             if cur_char == '\0' {
                 println!("EOF encountered");
                 break;
+            } else if cur_char.is_whitespace() {
             }
 
-            if cur_char == '\n' {
-                line_count += 1;
-                cur_line_char = 0;
-                start = i;
-                continue;
-            } else if cur_char == '\r' || cur_char == '\t' || cur_char == ' ' {
-                start = i;
-                cur_line_char += 1;
-                continue;
+            if Self::str_matches_lexes(&text[start..i], context) {
+
+                if !Self::str_matches_lexes(&text[start..i+1], context) {
+
+                    // We know we reached the end of our current token
+                    let res = Self::str_is_lex(&text[start..i], context);
+
+                    if let Some(s) = res {
+
+                        lexes.push(ParserToken::new(s, start, i, line_count, id));
+                        println!("Token added type: {:?}, name: {}", s, &text[start..i]);
+                        start = i;
+
+                    } else {
+                        lexes.push(ParserToken::new(ParserTokenType::Id, start, i, line_count, id));
+                        println!("Identifier added, name: {}", &text[start..i]);
+                        start = i;
+                    }
+                }
+
+            } else {
+                if cur_char.is_whitespace() {
+                    println!("Whitespace encountered with symbol: {:?}", &text[start..i]);
+                    start = i;    
+                } else {
+                    panic!("Unknown symbol: {:?}", &text[start..i]);
+                }
             }
 
-            let res = Self::str_to_lex((&text[start..i]), context);
-
-            if let Ok(s) = res {
-                let p_token = ParserToken::new(s, context.files.len(), start, i, line_count);
-                start = i;
-                lexes.push(p_token);
-            } else if let Err(msg) = res {
-                println!("{}", msg);
-            }
-
-            cur_line_char += 1;
+            col += 1;
         }
 
         context.files.push(path);
@@ -59,81 +70,156 @@ impl Lexer {
     }
 
     pub fn register(&mut self, path: PathBuf, context: &mut CompilerContext) -> Result<usize, &'static str> {
-
         if path.exists() {
-
             if context.files.contains(&path) {
                 let idx = context.files.iter().position(|x| *x == path).unwrap();
                 return Ok(idx);
             } else {
                 context.files.push(path);
-                return Ok(context.files.len());
+                return Ok(context.files.len()-1);
             }
         } else {
-
             return Err(format!("path: {:?} does not exist!", path).leak());
         }
-
     }
 
     fn str_to_lex(s: &str, c: &mut CompilerContext) -> Result<ParserTokenType, &'static str> {
 
-        if !s.is_ascii() {
-            return Err("Non-ascii string");
-        }
+        Err("TODO")
 
-        let mut hits = 0;
-        let mut typ  = ParserTokenType::Id;
+    }
 
-        let mut is_dig = true;
-        for ch in s.chars() {
-            if Self::match_ch_to_rx(|x| !x.is_digit(10), ch) {
-                is_dig = false;
-            }
+    fn str_matches_lexes(s: &str, c: &mut CompilerContext) -> bool {
 
-            if is_dig {
-                typ = ParserTokenType::Value;
-                hits += 1;
+        // String
+        if s.starts_with('"') {
+            if s.chars().filter(|c| *c == '"').count() == 2 && s.ends_with('"') {
+                return true;
+            } else if s.chars().filter(|c| *c == '"').count() == 1 {
+                return true;
             }
         }
 
-        if Self::match_str_to_rx(|st| st.starts_with("\"") && st.ends_with("\""), &s.to_owned()) {
-            typ = ParserTokenType::Value;
-            hits += 1;
-        } else if Self::match_str_to_rx(|st| c.types.contains(&st.as_str()), &s.to_owned()) {
-            typ = ParserTokenType::Type;
-            hits += 1;
-        } else if Self::match_str_to_rx(|st| *st == String::from("{") || *st == String::from("}") || *st == String::from(";"), &s.to_owned()) {
-            typ = ParserTokenType::Delim;
-            hits += 1;
-        } else if Self::match_str_to_rx(|st| c.funcs.contains(&st.as_str()), &s.to_owned()) {
-            typ = ParserTokenType::Func;
-            hits += 1;
-        } else if Self::match_str_to_rx(|st| st.chars().all(char::is_alphanumeric) && !st.chars().nth(0).expect("").is_digit(10), &s.to_owned()) {
-            typ = ParserTokenType::Id;
-            hits += 1;
+        // Char
+        if s.starts_with('\'') {
+            return true;
         }
 
-        if hits == 1 {
-            return Ok(typ);
+        // Negative numbers
+        if s.starts_with('-') {
+
+            let new_s = &s[1..];
+
+            // Integers
+            if new_s.chars().all(|ch: char| ch.is_digit(10)) {
+                return true;
+            }
+
+            // Floats
+            if let Some(t) = new_s.split_once('.') {
+                if t.0.starts_with(|ch: char| ch.is_digit(10)) || t.0 == "" {
+                    if t.1.chars().all(|ch: char| ch.is_digit(10)) {
+                        return true;
+                    }
+                }
+
+            }
         } else {
-            if hits == 0 {
-                return Err(format!("No matches for s: {}", s).leak());
-            } else {
-                return Err("Inconclusive lex");
+
+            // Integers
+            if s.chars().all(|ch: char| ch.is_digit(10)) {
+                return true;
+            }
+
+            // Floats
+            if let Some(t) = s.split_once('.') {
+                if t.0.starts_with(|ch: char| ch.is_digit(10)) || t.0 == "" {
+                    if t.1.chars().all(|ch: char| ch.is_digit(10)) {
+                        return true;
+                    }
+                }
+
             }
         }
+
+        // Booleans
+        if "true".starts_with(s) || "false".starts_with(s) {
+            return true;
+        }
+
+        // Types
+        for t in &c.types {
+            if t.starts_with(s) {
+                return true;
+            }
+        }
+
+        // Keyword/funcs
+        for f in &c.funcs {
+            if f.starts_with(s) {
+                return true;
+            }
+        }
+
+        // Identifiers
+        if s.chars().all(char::is_alphanumeric) && !s.chars().nth(0).expect("no char").is_digit(10) {
+            return true;
+        }
+
+        false
     }
 
-    fn match_str_to_rx<F>(f: F, st: &String) -> bool where
-        F: Fn(&String) -> bool {
-        
-        f(st)
-    }
+    fn str_is_lex(s: &str, c: &mut CompilerContext) -> Option<ParserTokenType> {
 
-    fn match_ch_to_rx<F>(f: F, st: char) -> bool where
-        F: Fn(char) -> bool {
-        
-        f(st)
+        // String
+        if s.starts_with('"') && s.ends_with('"') {
+            return Some(ParserTokenType::Str);
+        }
+
+        // Char
+        if s.starts_with('\'') && s.ends_with('\'') {
+            return Some(ParserTokenType::Ch);
+        }
+
+        {
+            // Negative
+            if s.starts_with('-') {
+                let s = &s[1..];
+            }
+            // Integers
+            if s.chars().all(|ch: char| ch.is_digit(10)) {
+                return Some(ParserTokenType::Num);
+            }
+
+            // Floats
+            if let Some(t) = s.split_once('.') {
+
+                if t.0.starts_with(|ch: char| ch.is_digit(10)) || t.0 == "" {
+                    if t.1.chars().all(|ch: char| ch.is_digit(10)) {
+                        return Some(ParserTokenType::Float);
+                    }
+                }
+            }
+        }
+
+        // Types
+        for t in &c.types {
+            if *t == s {
+                return Some(ParserTokenType::Type);
+            }
+        }
+
+        for f in &c.funcs {
+            if *f == s {
+                return Some(ParserTokenType::Func);
+            }
+        }
+
+        // Booleans
+        if s == "true" || s == "false" {
+            return Some(ParserTokenType::Bool);
+        }
+
+        None
     }
 }

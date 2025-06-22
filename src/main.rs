@@ -98,7 +98,7 @@ fn main() -> io::Result<()> {
     let mut parse_stack: Vec<ParserToken> = vec![];
     let mut tree: Tree<ParserToken> = Tree::new();
 
-   /* println!("\n\nBeginning parsing...\n\n");
+    println!("\n\nBeginning parsing...\n\n");
     parser.parse(result, &mut context, &mut parse_stack);
 
     println!("\n\n\n\n\n\n");
@@ -117,7 +117,7 @@ fn main() -> io::Result<()> {
     {
         //parse_res.print_vlr();
         println!("{:?}", tree);
-    }*/
+    }
 
     Ok(())
 }
