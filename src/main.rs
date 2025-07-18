@@ -5,6 +5,8 @@ use std::env;
 use std::path::PathBuf;
 
 mod compiler_context;
+mod compiler_info;
+mod ezz_type;
 mod lexer;
 mod parser;
 mod trie;
@@ -96,7 +98,6 @@ fn main() -> io::Result<()> {
     println!("\n\nLexing result: \n{:?}\n\n", result);
 
     let mut parse_stack: Vec<ParserToken> = vec![];
-    let mut tree: Tree<ParserToken> = Tree::new();
 
     println!("\n\nBeginning parsing...\n\n");
     parser.parse(result, &mut context, &mut parse_stack);
@@ -107,6 +108,9 @@ fn main() -> io::Result<()> {
         println!("{:?}, ", x);
     }
 
+    for x in &context.funcs {
+        println!("Function: {:?}\n", x);
+    }
     /*println!("\n");
     for x in &parse_res {
         println!("{:?}", x);
@@ -115,8 +119,8 @@ fn main() -> io::Result<()> {
 
     use colored::Colorize;
     {
-        //parse_res.print_vlr();
-        println!("{:?}", tree);
+        //context.tree.print_vlr();
+        //println!("{:?}", context.tree);
     }
 
     Ok(())

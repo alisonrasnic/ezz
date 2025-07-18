@@ -1,1 +1,8 @@
-i32 mn$args let x=5.5 put"Hello, world!"0
+u1 isFive i32 x
+	true
+
+u32 mn$args
+let x=5.5 let y put"Hello, world!"0
+
+str parseNum str input
+"Hello world!"

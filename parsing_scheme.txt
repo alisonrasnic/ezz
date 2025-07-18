@@ -1,0 +1,33 @@
+LR(1) parsing
+
+how do we handle function definitions?
+
+ex:
+
+i32 mn
+	let x
+	put x
+	0
+
+
+
+This becomes:
+
+FnHeader, FnCall, Id, FnCall, Id, Int
+
+How to lr1 reduce this
+
+FnHeader, FnCall -> FnBody
+
+
+
+How to distinguish between returning value and part of a fncall?
+
+the biggest problem here is determining when a fncall ends.
+how many arguments do we have and which ones do we expect?
+
+if that's the case, we need to process all the fnheaders before we process the bodies.
+
+returning value is the last value..
+
+

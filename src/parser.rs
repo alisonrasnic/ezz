@@ -2,6 +2,7 @@
 use crate::trie::TrieNode;
 use crate::tree_generator::TreeGenerator;
 use crate::compiler_context::CompilerContext;
+use crate::compiler_info::*;
 
 use myl_tree::{Tree, TreeNode};
 
@@ -11,34 +12,77 @@ use std::path::PathBuf;
 pub struct Parser {
     trie_1: TrieNode,
     trie_2: TrieNode,
-    vars:   Vec<String>,
-    funcs:  Vec<String>,
 }
 
 impl Parser {
     pub fn new() -> Parser {
         let mut trie_1 = TrieNode::new();
+        let mut trie_2 = TrieNode::new();
         trie_1.insert_route(vec![1, 4, 10]);
 
-        trie_1.insert_route(vec![10, 10, 10]);
-        
-        trie_1.insert_route(vec![5, 2, 12]);
+        trie_1.insert_route(vec![10, 1, 4, 18]);        
+        trie_1.insert_route(vec![18, 8, 1, 4, 19]);
+        trie_1.insert_route(vec![19, 8, 1, 4, 19]);
 
-        Parser { trie_1: trie_1, trie_2: TrieNode::new(), vars: vec![], funcs: vec![String::from("let"), String::from("put")] }
+        trie_1.insert_route(vec![10, 20]);
+        trie_1.insert_route(vec![18, 20]);
+        trie_1.insert_route(vec![19, 20]);
+
+        // 6 represents a fully defined function and therefore, does not need to be in the parse
+        //   stack
+        trie_2.insert_route(vec![18, 4, 6]);
+        trie_2.insert_route(vec![18, 13, 6]);
+        trie_2.insert_route(vec![18, 14, 6]);
+        trie_2.insert_route(vec![18, 15, 6]);
+        trie_2.insert_route(vec![18, 16, 6]);
+        trie_2.insert_route(vec![18, 17, 6]);
+        
+        trie_2.insert_route(vec![19, 4, 6]);
+        trie_2.insert_route(vec![19, 13, 6]);
+        trie_2.insert_route(vec![19, 14, 6]);
+        trie_2.insert_route(vec![19, 15, 6]);
+        trie_2.insert_route(vec![19, 16, 6]);
+        trie_2.insert_route(vec![19, 17, 6]);
+
+        trie_2.insert_route(vec![18, 6, 4, 18]);
+        trie_2.insert_route(vec![18, 6, 4, 6, 4, 18]);
+        trie_2.insert_route(vec![18, 6, 4, 6, 16, 18]);
+        trie_2.insert_route(vec![18, 6, 13, 18]);
+
+        trie_2.insert_route(vec![19, 6, 4, 19]);
+        trie_2.insert_route(vec![19, 6, 4, 6, 4, 19]);
+        trie_2.insert_route(vec![19, 6, 4, 6, 16, 19]);
+        trie_2.insert_route(vec![19, 6, 13, 19]);
+
+        trie_2.insert_route(vec![19, 8, 10, 19]);
+
+        Parser { trie_1: trie_1, trie_2: trie_2 }
     }
 
     // lex is necessary to convert from string into a token
     //  as opposed to the parse which changes tokens into simpler tokens
-    
 
     pub fn parse(&mut self, tokens: Vec<ParserToken>, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) {
         let mut cur_tok_idx: usize = 0;
 
         while cur_tok_idx < tokens.len() {
             parse_stack.push(tokens[cur_tok_idx].clone());
-            self.full_reduce_1(context, parse_stack);
-            self.step(&tokens, &mut cur_tok_idx);
+            println!("\n\nParse Stack: {:?}\n\n", &parse_stack);
+            let mut res = self.full_reduce_1(context, parse_stack);
+
+            if let Err(v) = res {
+                if v == "Unknown" {
+                    self.step(&tokens, &mut cur_tok_idx);
+                } else if v == "Skip" {
+                    *parse_stack = vec![];
+                } else if v == "Retry" {
+                } else {
+                    panic!("ANSDKLA");
+                }
+            }
         }
+
+        parse_stack.pop();
     }
 
     pub fn step(&self, tokens: &Vec<ParserToken>, cur_token: &mut usize) -> Result<&'static str, &'static str> 
@@ -49,72 +93,172 @@ impl Parser {
         Ok("Success")
     }
 
+
+    /*
+     *     This first pass aims to parse every function header so we can pass over again and then
+     *     fully process the function bodies, allowing for functions to be defined after they are
+     *     used as well as being able to distinguish accurately between functions, variables, and
+     *     other scoping issues.
+     *
+     *     We already have it processing function headers so how do we get it to only process the
+     *     function headers without anything else?
+     *
+     *     Consider the following:
+     *       fn hi 
+     *         put "Hi"
+     *         0
+     *       
+     *       i32 mn$args
+     *         let x = sizeOf i32
+     *         hi
+     *         x
+     *
+     *    The problem here if we try to only parse FnHeaders is that types can be an "object" at
+     *    times. we have Type, Id and then the current parser will think that there is a fn header called sizeOf that
+     *    takes an i32 and then returns that function.
+     *
+     *    The real question out of this is how do we handle "type objects"?
+     *
+     *    Solution 1:
+     *      Do not allow any type objects.
+     *      
+     *      In this case, measuring memory size of objects would have to be done a different way.
+     *    
+     *    Solution 2:
+     *      Type objects MUST be inside a group
+     *
+     *      i.e. :
+     *        i32 mn$args
+     *          let x = sizeOf[i32]
+     *          hi
+     *          x
+     *        
+     *      hopefully here, the parser would see the identifier sizeOf, and then see a group with a
+     *      type inside and nothing else, this implies it is a type object. this would also
+     *      requires us to not support function headers inside of groups, however.
+     *
+     *      Groups fundamentally are for separation/clarification, but in a sense, is a scoping
+     *      mechanism. e.g. :
+     *                          i32 mn$args
+     *                            let x = [fn sizeOf [type] typ /*code here*/]
+     *                            x i32 
+     *                            0
+     *
+     *      I think this is fine??
+     *
+     */
     pub fn full_reduce_1(&mut self, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
 
-        // full_reduce executes reduce repeatedly on our entire stack until the very last
-        // possibility of reducing returns Err
+        if parse_stack.len() == 0 {
+            return Err("Retry");
+        }
+        /*
+         *
+         *    LR(1) parsing
+         *
+         *    check if our current stack matches a route in trie
+         *    if it does, and adding one more to the stack makes it not match anymore
+         *    then a reduction is made.
+         *
+         */
 
-        let mut stack_beg = 0;
-        let mut stack_wid = 1;
-        
-        while stack_wid < parse_stack.len() {
+        // assume parse_stack contains 1 look-ahead symbol 
 
-            let mut end_idx = stack_beg+stack_wid;
-            if end_idx > parse_stack.len() {
-                end_idx = parse_stack.len()-1;
-            }
+        let path = &context.files[parse_stack[0].id];
+        let res = self.func_reduce(&parse_stack[0..parse_stack.len()-1], &parse_stack[parse_stack.len()-1], &path);
 
-            let tok_id = parse_stack[stack_beg].id;
-            let result = self.reduce(&parse_stack[stack_beg..end_idx], &context.files[tok_id]);             
-            let literal = Parser::string_from_p_slice(&parse_stack[stack_beg..end_idx], &context.files[tok_id]);
+        if let Err(msg) = res {
 
-            if let Ok(p_type) = result {
-                println!("Reduction!"); 
-
-                use std::ptr::NonNull;
-
-                let tok_start = parse_stack[stack_beg].start;
-                let tok_end   = parse_stack[end_idx].end;
-                let tok_line  = parse_stack[stack_beg].line;
-
-                for i in (stack_beg..end_idx).rev() {
-                    let token = parse_stack.remove(i);
-                    let mut tree_new_node = context.gen.take_mut(token);
-                    context.tree.set_head(tree_new_node);
-                    println!("Hi");
-                    context.tree.print_vlr();
-                    println!("Bye");
-                    if end_idx > 0 { 
-                        end_idx-=1;
-                    }
-                }
-
-                // for creation of parser tokens, we are going to require a registry of
-                // parsertokens to keep track of their IDs
-                parse_stack.insert(stack_beg, ParserToken::new(p_type.clone(), tok_id, tok_start, tok_end, tok_line));
-                let mut tree_reduction_node = context.gen.take_mut(ParserToken::new(p_type, tok_id, tok_start, tok_end, tok_line));
-
-                context.tree.set_head(tree_reduction_node);
-                std::mem::forget(tree_reduction_node);
-                context.tree.print_vlr();
-
-                stack_beg = 0;
-                stack_wid = 0;
-
+            // this means we need to step
+            if msg == "Unknown" {
+                return Err("Unknown");
+            } else if msg == "Skip" {
+                return Err("Skip");
             } else {
-               // println!("Error: {:?}", result);
-                stack_beg += 1;
-                //println!("beg: {}, wid: {}, parse_stack_len: {}", stack_beg, stack_wid, parse_stack.len());
-
-                if stack_beg >= parse_stack.len() {
-                    stack_beg = 0;
-                    stack_wid += 1;
-                    println!("beg: {}, wid: {}, parse_stack_len: {}", stack_beg, stack_wid, parse_stack.len());
-                }
+                // this means an actual error has occurred
+                panic!("{}", msg);
             }
-        } 
 
-        Ok("Success")
+        } else {
+            // this means the reduction was successful and we need to gen a new token
+            // this also means we need to edit the parse stack 
+
+            let s = res.unwrap();
+            let id = &parse_stack[0].id;
+            let start = &parse_stack[0].start;
+            let end   = &parse_stack.last().unwrap().end;
+            let line  = &parse_stack[0].line;
+            let new_token = ParserToken::new(s, *id, *start, *end, *line);
+
+            let last = parse_stack.last().unwrap().clone();
+            if s != ParserTokenType::FuncHeader && s != ParserTokenType::FuncHeaderNArg && s != ParserTokenType::FuncHeaderArgs && s != ParserTokenType::FuncHeaderMArgs {
+                *parse_stack = vec![];
+                parse_stack.push(new_token);
+            } else if s == ParserTokenType::FuncHeaderNArg {
+
+                /*
+                 *      first token is our type
+                 *      second token is our name
+                 */
+
+                use crate::ezz_type::*;
+                let mut typ = str_to_type(parse_stack[0].get_literal(&context.files[new_token.get_id()]));
+                let mut def = FnDef::new((&parse_stack[1]).get_literal(&context.files[new_token.get_id()]), vec![], typ, false);
+                context.set_func(def);
+
+                *parse_stack = vec![];
+                parse_stack.push(new_token);
+            
+            } else if s == ParserTokenType::FuncHeaderArgs {
+                /*
+                 *   this means  ?
+                 *   we append an arg but how do we remember what fn to append to
+                 *      1: we could append to our last created fn
+                 *
+                 */
+
+                println!("Found header argument!!!");
+                use crate::ezz_type::*;
+                let mut literal = parse_stack[2].get_literal(&context.files[new_token.get_id()]);
+                let mut literal_type = parse_stack[1].get_literal(&context.files[new_token.get_id()]);
+                let mut arg_type = str_to_type(literal_type);
+
+                let mut arg = Arg::from_type(arg_type, literal); 
+                context.append_last_func(arg);
+
+                *parse_stack = vec![];
+                parse_stack.push(new_token);
+
+            } else if s == ParserTokenType::FuncHeaderMArgs {
+                /*
+                 *   this means  ?
+                 *   we append an arg but how do we remember what fn to append to
+                 *      1: we could append to our last created fn
+                 *
+                 */
+
+                println!("Found header argument!!!");
+                use crate::ezz_type::*;
+                let mut literal = parse_stack[3].get_literal(&context.files[new_token.get_id()]);
+                let mut literal_type = parse_stack[2].get_literal(&context.files[new_token.get_id()]);
+
+                let mut arg = Arg::from_type(str_to_type(literal_type), literal); 
+                context.append_last_func(arg);
+
+                *parse_stack = vec![];
+                parse_stack.push(new_token);
+
+            } else { 
+                *parse_stack = vec![];
+            }
+
+            //parse_stack.push(last);
+
+            return Ok("Success");
+
+        }
+
+        Err("")
     }
 
     pub fn full_reduce_2(&mut self, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>) -> Result<&'static str, &'static str> {
@@ -131,18 +275,70 @@ impl Parser {
         Ok("Success")
     }
 
-    fn reduce(&mut self, slice: &[ParserToken], path: &PathBuf) -> Result<ParserTokenType, &'static str> {
+    fn reduce(&mut self, slice: &[ParserToken], look_ahead: &ParserToken, path: &PathBuf) -> Result<ParserTokenType, &'static str> {
         // reduce does a single reduce of a stack of tokens
-        let mut types: Vec<u8> = vec![];
+        let mut types: Vec<usize> = vec![];
         for t in slice {
-            println!("-- reduce: found type->{:?} | literal: {:?}", t.get_type(), t.get_literal(path));
-            types.push(t.get_type() as u8);
+            types.push(t.get_type() as usize);
         }
 
-        let res = self.get_regex(types);
+        if types.len() == 0 {
+            return Err("Unknown");
+        }
 
-        if let Some(v) = res {
-            return Ok(v);
+        let mut types_ahead = types.clone();
+        types_ahead.push(look_ahead.get_type() as usize);
+
+        println!("types: {:?}\ntypes_ahead: {:?}\n", &types, &types_ahead);
+
+        let res = self.trie_1.match_route(&types);
+        let res_la = self.trie_1.match_route(&types_ahead);
+
+        println!("res: {:?}\nres_la: {:?}", &res, &res_la);
+
+        if res {
+            if !res_la {
+                return Ok(self.get_regex(types).unwrap());
+            }
+
+            return Err("Unknown");
+        } else {
+            return Err("Failed to reduce");
+        }
+    }
+
+    fn func_reduce(&mut self, slice: &[ParserToken], look_ahead: &ParserToken, path: &PathBuf) -> Result<ParserTokenType, &'static str> {
+        // reduce does a single reduce of a stack of tokens
+        let mut types: Vec<usize> = vec![];
+        for t in slice {
+            types.push(t.get_type() as usize);
+        }
+
+        if types.len() == 0 {
+            return Err("Unknown");
+        }
+
+        let mut types_ahead = types.clone();
+        types_ahead.push(look_ahead.get_type() as usize);
+
+        println!("types: {:?}\ntypes_ahead: {:?}\n", &types, &types_ahead);
+
+        let res = self.trie_1.match_route(&types);
+        let res_la = self.trie_1.match_route(&types_ahead);
+
+        println!("res: {:?}\nres_la: {:?}", &res, &res_la);
+
+        if res {
+            if !res_la {
+                let regex = self.get_regex(types);
+                if let Some(t) = regex {
+                    return Ok(t);
+                } else {
+                    return Err("Skip");
+                }
+            }
+
+            return Err("Unknown");
         } else {
             return Err("Failed to reduce");
         }
@@ -159,18 +355,20 @@ impl Parser {
     }
 
     // borken!!
-    fn get_regex(&mut self, vals: Vec<u8>) -> Option<ParserTokenType> {
+    fn get_regex(&mut self, vals: Vec<usize>) -> Option<ParserTokenType> {
         use std::rc::Rc;
+        println!("Getting child from route: {:?}", vals);
         let r = self.trie_1.get_child_from_route(vals);
 
         if let Some(ref s) = r {
-            if let Ok(trie_node) = Rc::try_unwrap(s.into()) {;
-                return Some(ParserTokenType::from_u8(trie_node.borrow().get_leaf().unwrap()));
+            if let Ok(trie_node) = Rc::try_unwrap(s.into()) {
+                if let Some(val) = trie_node.borrow_mut().get_leaf() {
+                    return Some(ParserTokenType::from_usize(val));
+                }
             } else {
                 panic!("Rc unwrap failure: {:?}", r.unwrap().borrow() );
             }
         } else {
-            //println!("Oof");
         }
 
         None
@@ -192,6 +390,10 @@ impl ParserToken {
 
     pub fn new(parse_type: ParserTokenType, id: usize, start: usize, end: usize, line: usize) -> Self {
         ParserToken { parse_type: parse_type, id: id, start: start, end: end, line: line}
+    }
+
+    pub fn get_id(&self) -> usize {
+        self.id
     }
 
     pub fn get_type(&self) -> ParserTokenType {
@@ -233,7 +435,7 @@ pub enum ParserTokenType {
     Delim=7,
     Comma=8,
     FuncList=9,
-    FuncHeader=10,
+    FuncHeaderNArg=10,
     Declare=11,
     Assignment=12,
     Str=13,
@@ -241,10 +443,15 @@ pub enum ParserTokenType {
     Num=15,
     Float=16,
     Bool=17,
+    FuncHeaderArgs=18,
+    FuncHeaderMArgs=19,
+    FuncHeader=20,
+    Group=21,
+    Void=22,
 }
 
 impl ParserTokenType {
-    pub fn from_u8(num: u8) -> ParserTokenType {
+    pub fn from_usize(num: usize) -> ParserTokenType {
         match num {
             1 => ParserTokenType::Type,
             3 => ParserTokenType::Expr,
@@ -254,7 +461,7 @@ impl ParserTokenType {
             7 => ParserTokenType::Delim,
             8 => ParserTokenType::Comma,
             9 => ParserTokenType::FuncList,
-            10 => ParserTokenType::FuncHeader,
+            10 => ParserTokenType::FuncHeaderNArg,
             11 => ParserTokenType::Declare,
             12 => ParserTokenType::Assignment,
             13 => ParserTokenType::Str,
@@ -262,11 +469,20 @@ impl ParserTokenType {
             15 => ParserTokenType::Num,
             16 => ParserTokenType::Float,
             17 => ParserTokenType::Bool,
+            18 => ParserTokenType::FuncHeaderArgs,
+            19 => ParserTokenType::FuncHeaderMArgs,
+            20 => ParserTokenType::FuncHeader,
+            21 => ParserTokenType::Group,
+            22 => ParserTokenType::Void,
             _ => ParserTokenType::Id,
         }
     }
 
     pub fn is_value(&self) -> bool {
-       (*self as u8) >= 13 && (*self as u8) <= 17
+       (*self as usize) >= 13 && (*self as usize) <= 17
+    }
+
+    pub fn is_fn_head(&self) -> bool {
+        (*self as usize) == 20
     }
 }

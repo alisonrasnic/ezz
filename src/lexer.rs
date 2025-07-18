@@ -30,7 +30,9 @@ impl Lexer {
             if cur_char == '\0' {
                 println!("EOF encountered");
                 break;
-            } else if cur_char.is_whitespace() {
+            } else if cur_char == '\n' {
+                line_count += 1;
+                col = 0;
             }
 
             if Self::str_matches_lexes(&text[start..i], context) {
@@ -42,12 +44,12 @@ impl Lexer {
 
                     if let Some(s) = res {
 
-                        lexes.push(ParserToken::new(s, start, i, line_count, id));
+                        lexes.push(ParserToken::new(s, id, start, i, line_count));
                         println!("Token added type: {:?}, name: {}", s, &text[start..i]);
                         start = i;
 
                     } else {
-                        lexes.push(ParserToken::new(ParserTokenType::Id, start, i, line_count, id));
+                        lexes.push(ParserToken::new(ParserTokenType::Id, id, start, i, line_count));
                         println!("Identifier added, name: {}", &text[start..i]);
                         start = i;
                     }
@@ -91,6 +93,14 @@ impl Lexer {
 
     fn str_matches_lexes(s: &str, c: &mut CompilerContext) -> bool {
 
+        if s == "," {
+            return true;
+        }
+
+        if s.starts_with('[') {
+            return true;
+        }
+        
         // String
         if s.starts_with('"') {
             if s.chars().filter(|c| *c == '"').count() == 2 && s.ends_with('"') {
@@ -156,7 +166,7 @@ impl Lexer {
 
         // Keyword/funcs
         for f in &c.funcs {
-            if f.starts_with(s) {
+            if f.get_name().starts_with(s) {
                 return true;
             }
         }
@@ -170,6 +180,14 @@ impl Lexer {
     }
 
     fn str_is_lex(s: &str, c: &mut CompilerContext) -> Option<ParserTokenType> {
+
+        if s == "," {
+            return Some(ParserTokenType::Comma);
+        }
+
+        if s.starts_with('[') && s.ends_with(']') {
+            return Some(ParserTokenType::Group);
+        }
 
         // String
         if s.starts_with('"') && s.ends_with('"') {
@@ -209,8 +227,9 @@ impl Lexer {
             }
         }
 
+        // In-built functions
         for f in &c.funcs {
-            if *f == s {
+            if f.get_name() == s {
                 return Some(ParserTokenType::Func);
             }
         }

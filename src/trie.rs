@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct TrieNode {
-    options: Vec<(u8, Rc<RefCell<TrieNode>>)>,
+    options: Vec<(usize, Rc<RefCell<TrieNode>>)>,
 }
 
 
@@ -12,18 +12,18 @@ impl TrieNode {
         TrieNode { options: vec![] } 
     }
 
-    pub fn insert_child(&mut self, idx: u8, node: Rc<RefCell<TrieNode>>) -> bool {
+    pub fn insert_child(&mut self, idx: usize, node: Rc<RefCell<TrieNode>>) -> bool {
         self.options.push( (idx, node) );
         true
     }
 
-    pub fn insert_node(&mut self, idx: u8) -> Rc<RefCell<TrieNode>> { 
+    pub fn insert_node(&mut self, idx: usize) -> Rc<RefCell<TrieNode>> { 
         let node = Rc::from(RefCell::from(TrieNode::new()));
         self.options.push( (idx, node.clone()) );
         node.clone()
     }
 
-    pub fn insert_route(&mut self, idx_s: Vec<u8>) -> bool {
+    pub fn insert_route(&mut self, idx_s: Vec<usize>) -> bool {
         if idx_s.len() < 2 {
             return false;
         }
@@ -50,7 +50,7 @@ impl TrieNode {
         true
     }
 
-    pub fn has_child(&self, idx: u8) -> bool {
+    pub fn has_child(&self, idx: usize) -> bool {
         for x in &self.options {
             if x.0 == idx {
                 return true;
@@ -60,7 +60,7 @@ impl TrieNode {
         false
     }
 
-    fn find_idx(&mut self, idx: u8) -> Option<Rc<RefCell<TrieNode>>> {
+    fn find_idx(&mut self, idx: usize) -> Option<Rc<RefCell<TrieNode>>> {
         for x in &mut self.options {
             if x.0 == idx {
                 return Some(x.1.clone());
@@ -70,7 +70,7 @@ impl TrieNode {
         None
     }
 
-    pub fn get_child(&mut self, idx: u8) -> Option<Rc<RefCell<TrieNode>>> {
+    pub fn get_child(&mut self, idx: usize) -> Option<Rc<RefCell<TrieNode>>> {
         if self.has_child(idx) {
             return self.find_idx(idx);
         } else {
@@ -78,7 +78,7 @@ impl TrieNode {
         }
     }
 
-    pub fn get_leaf(&self) -> Option<u8> {
+    pub fn get_leaf(&self) -> Option<usize> {
 
         if self.options.len() == 0 {
             return None;
@@ -100,8 +100,8 @@ impl TrieNode {
         None
     }
 
-    pub fn get_child_from_route(&mut self, idx_s: Vec<u8>) -> Option<Rc<RefCell<TrieNode>>> {
-        if idx_s.len() < 2 {
+    pub fn get_child_from_route(&mut self, idx_s: Vec<usize>) -> Option<Rc<RefCell<TrieNode>>> {
+        if idx_s.len() < 1 {
             return None;
         }
 
@@ -133,5 +133,55 @@ impl TrieNode {
         }
         
         Some(cur_node)
+    }
+    
+    //
+    //  types: 1, 4
+    //  types_ahead: 1, 4, 1
+    //
+    //  should return true false but it's not
+    //
+    //  len is not <= 0
+    //
+    //  cur_idx = 1
+    //  child = Some(4)
+    //
+    //
+    //  
+    //
+    //
+    pub fn match_route(&mut self, idx_s: &Vec<usize>) -> bool {
+        
+        if idx_s.len() <= 0 {
+            return false;
+        }
+
+        let mut cur_idx = 1;
+
+        let mut child = self.get_child(idx_s[0]);
+        while child.is_some() && cur_idx < idx_s.len() {
+            if !child.clone().unwrap().borrow_mut().has_child(idx_s[cur_idx]) {
+                return false;
+            }
+
+            child = child.unwrap().borrow_mut().get_child(idx_s[cur_idx]);
+            
+            cur_idx += 1;
+        }
+
+        cur_idx == idx_s.len()
+    }
+
+    pub fn get_route_child(&mut self, idx_s: &Vec<usize>) -> Option<Rc<RefCell<TrieNode>>> {
+        
+        let mut cur_idx = 0;
+
+        let mut child = self.get_child(idx_s[cur_idx]);
+        while child.is_some() && cur_idx < idx_s.len()-1 {
+            cur_idx += 1;
+            child = child.unwrap().borrow_mut().get_child(idx_s[cur_idx]);
+        }
+
+        child
     }
 }

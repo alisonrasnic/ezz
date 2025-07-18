@@ -6,13 +6,14 @@ use std::mem::*;
 pub struct TreeGenerator {
     
     nodes: Vec<TreeNode<ParserToken>>,
+    tree: Tree<ParserToken>,
 
 }
 
 impl TreeGenerator {
     pub fn new() -> Self {
 
-        TreeGenerator { nodes: vec![] }
+        TreeGenerator { nodes: vec![], tree: Tree::new() }
 
     }
 
