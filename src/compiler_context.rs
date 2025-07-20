@@ -65,4 +65,14 @@ impl CompilerContext {
 
         false
     }
+
+    pub fn get_func<F: Fn(&FnDef) -> bool>(&self, f: F) -> Option<&FnDef> {
+        for x in &self.funcs {
+            if f(x) {
+                return Some(x);
+            }
+        }
+
+        None
+    }
 }

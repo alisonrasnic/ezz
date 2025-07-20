@@ -83,6 +83,28 @@ impl Parser {
         }
 
         parse_stack.pop();
+
+        while cur_tok_idx < tokens.len() {
+            cur_tok_idx = 0;
+            parse_stack.push(tokens[cur_tok_idx].clone());
+
+            println!("\nBeginning pass 2 of parsing...\n");
+
+            let mut res = self.full_reduce_2(context, parse_stack);
+
+            if let Err(v) = res {
+                if v == "Unknown" {
+                    self.step(&tokens, &mut cur_tok_idx);
+                } else if v == "Skip" {
+                    *parse_stack = vec![];
+                } else if v == "Retry" {
+                } else {
+                    panic!("ANSDKLA");
+                }
+            }
+        }
+
+        parse_stack.pop();
     }
 
     pub fn step(&self, tokens: &Vec<ParserToken>, cur_token: &mut usize) -> Result<&'static str, &'static str> 
@@ -203,7 +225,7 @@ impl Parser {
 
                 use crate::ezz_type::*;
                 let mut typ = str_to_type(parse_stack[0].get_literal(&context.files[new_token.get_id()]));
-                let mut def = FnDef::new((&parse_stack[1]).get_literal(&context.files[new_token.get_id()]), vec![], typ, false);
+                let mut def = FnDef::new((&parse_stack[1]).get_literal(&context.files[new_token.get_id()]), Some(*start), vec![], typ, false);
                 context.set_func(def);
 
                 *parse_stack = vec![];
@@ -261,16 +283,45 @@ impl Parser {
         Err("")
     }
 
-    pub fn full_reduce_2(&mut self, parse_stack: &mut Vec<ParserToken>, tree: &mut Tree<ParserToken>) -> Result<&'static str, &'static str> {
+    pub fn full_reduce_2(&mut self, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
 
         // pass 2
-        //   here we are processing fnheaders to find their name (2nd token in the tree)
-        //   add to the list
         //
-        //   also adding vars definitions to our list
-        //     this includes func parameters
-        //     scope analysis can be done through the tree formed
+        //      here we need to ignore function headers, potentially a tricky topic. or at least if
+        //      encountered, find their name and skip the appropriate amount of tokens. but this
+        //      depends on which definition of it we have.
         //
+        //      we could also record the position of each function definition and then if our token
+        //      starts at that, we know exactly how many tokens to skip
+        //
+        //      then we can read the arguments into our vars list and process the body
+        //      if correct, it passes out of the parse_stack and into the tree.
+        //
+        //      when the function returns its last value, all of its variables and arguments are
+        //      removed from our variables, maintaining scope.
+        //
+
+        let mut path = &context.files[parse_stack[0].id];
+
+        let mut res = self.reduce(&parse_stack[0..parse_stack.len()-2], &parse_stack[parse_stack.len()-1], path);
+
+        if let Ok(s) = res {
+            // s is our returned new token type
+            // so for example, if we encounter a FuncHeaderNArg, then we need to look it up and
+            // skip ahead
+
+            use crate::ezz_type::*;
+            let func = &context.get_func(|x| (*x).get_type() == str_to_type(parse_stack[0].get_literal(path)) && x.get_name() == parse_stack[1].get_literal(path));
+
+            if let Some(f) = func {
+                
+            } else {
+
+            }
+
+        } else {
+            return Err("Something");
+        }
 
         Ok("Success")
     }
