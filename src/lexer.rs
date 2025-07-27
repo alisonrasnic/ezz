@@ -8,7 +8,6 @@ pub struct Lexer;
 
 impl Lexer {
     pub fn new() -> Self {
-
         Lexer { }
     }
 
@@ -93,6 +92,15 @@ impl Lexer {
 
     fn str_matches_lexes(s: &str, c: &mut CompilerContext) -> bool {
 
+        // The only keyword in Ezz: api
+        //      - allows you to use the inner
+        //          compiler api to create your
+        //          own control flows, "keywords",
+        //          and macros you can think of.
+        if String::from("api").starts_with(s) {
+            return true;
+        }
+
         if s == "," {
             return true;
         }
@@ -166,7 +174,7 @@ impl Lexer {
 
         // Keyword/funcs
         for f in &c.funcs {
-            if f.get_name().starts_with(s) {
+            if f.0.get_name().starts_with(s) {
                 return true;
             }
         }
@@ -180,6 +188,15 @@ impl Lexer {
     }
 
     fn str_is_lex(s: &str, c: &mut CompilerContext) -> Option<ParserTokenType> {
+        
+        // The only keyword in Ezz: api
+        //      - allows you to use the inner
+        //          compiler api to create your
+        //          own control flows, "keywords",
+        //          and macros you can think of.
+        if s == "api" { 
+            return Some(ParserTokenType::Api);
+        }
 
         if s == "," {
             return Some(ParserTokenType::Comma);
@@ -229,7 +246,7 @@ impl Lexer {
 
         // In-built functions
         for f in &c.funcs {
-            if f.get_name() == s {
+            if f.0.get_name() == s {
                 return Some(ParserTokenType::Func);
             }
         }

@@ -4,6 +4,7 @@ use std::fs::File;
 use std::env;
 use std::path::PathBuf;
 
+mod compiler;
 mod compiler_context;
 mod compiler_info;
 mod ezz_type;

@@ -21,7 +21,6 @@ impl TreeGenerator {
 
         let mut node = TreeNode::new(token);
         self.nodes.push(node);
-        //forget(node);
 
         self.nodes.last().unwrap()
 
@@ -33,5 +32,9 @@ impl TreeGenerator {
         self.nodes.push(node);
 
         self.nodes.last_mut().unwrap()
+    }
+
+    pub fn rehead(&mut self, token: usize, left: bool) {
+        self.tree.rehead(self.nodes.get_mut(token).unwrap(), left);
     }
 }

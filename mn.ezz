@@ -1,8 +1,9 @@
-u1 isFive i32 x
-	true
+fn newlet i32 x
+	api [add_variable x]
+	0
 
 u32 mn$args
-let x=5.5 let y put"Hello, world!"0
+let x put x 0
 
-str parseNum str input
-"Hello world!"
+u1 isFive i32 x
+	true

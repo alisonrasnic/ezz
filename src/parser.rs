@@ -30,31 +30,18 @@ impl Parser {
 
         // 6 represents a fully defined function and therefore, does not need to be in the parse
         //   stack
-        trie_2.insert_route(vec![18, 4, 6]);
-        trie_2.insert_route(vec![18, 13, 6]);
-        trie_2.insert_route(vec![18, 14, 6]);
-        trie_2.insert_route(vec![18, 15, 6]);
-        trie_2.insert_route(vec![18, 16, 6]);
-        trie_2.insert_route(vec![18, 17, 6]);
-        
-        trie_2.insert_route(vec![19, 4, 6]);
-        trie_2.insert_route(vec![19, 13, 6]);
-        trie_2.insert_route(vec![19, 14, 6]);
-        trie_2.insert_route(vec![19, 15, 6]);
-        trie_2.insert_route(vec![19, 16, 6]);
-        trie_2.insert_route(vec![19, 17, 6]);
+        trie_2.insert_route(vec![1, 4, 10]);
 
-        trie_2.insert_route(vec![18, 6, 4, 18]);
-        trie_2.insert_route(vec![18, 6, 4, 6, 4, 18]);
-        trie_2.insert_route(vec![18, 6, 4, 6, 16, 18]);
-        trie_2.insert_route(vec![18, 6, 13, 18]);
-
-        trie_2.insert_route(vec![19, 6, 4, 19]);
-        trie_2.insert_route(vec![19, 6, 4, 6, 4, 19]);
-        trie_2.insert_route(vec![19, 6, 4, 6, 16, 19]);
-        trie_2.insert_route(vec![19, 6, 13, 19]);
-
-        trie_2.insert_route(vec![19, 8, 10, 19]);
+        trie_2.insert_route(vec![20, 17, 20]);
+        trie_2.insert_route(vec![20, 6, 23]);
+        trie_2.insert_route(vec![20, 0, 23]);
+        trie_2.insert_route(vec![23, 0, 13, 23]);
+        trie_2.insert_route(vec![23, 6, 23]);
+        trie_2.insert_route(vec![23, 4, 23]);
+        trie_2.insert_route(vec![23, 15, 23]);
+        trie_2.insert_route(vec![23, 16, 23]);
+        trie_2.insert_route(vec![23, 4, 8, 4, 23]);
+        trie_2.insert_route(vec![23, 13, 23]);
 
         Parser { trie_1: trie_1, trie_2: trie_2 }
     }
@@ -82,24 +69,36 @@ impl Parser {
             }
         }
 
-        parse_stack.pop();
+        *parse_stack = vec![];
 
+        cur_tok_idx = 0;
+        println!("\n\n\nBeginning pass 2 of parsing...\n\n\n");
         while cur_tok_idx < tokens.len() {
-            cur_tok_idx = 0;
             parse_stack.push(tokens[cur_tok_idx].clone());
-
-            println!("\nBeginning pass 2 of parsing...\n");
 
             let mut res = self.full_reduce_2(context, parse_stack);
 
             if let Err(v) = res {
                 if v == "Unknown" {
                     self.step(&tokens, &mut cur_tok_idx);
-                } else if v == "Skip" {
+                } else if v.starts_with("Skip") {
+                    let num = (v.split(' ').collect::<Vec<&'static str>>()[1].chars().nth(0).unwrap() ).to_digit(10).unwrap();
+                    println!("Num to skip: {}", num);
+                    let id = &parse_stack[0].get_id(); 
+                    let start = &parse_stack[0].get_start(); 
+                    let end = &parse_stack[0].get_end(); 
+                    let line = &parse_stack[0].get_line();
                     *parse_stack = vec![];
+                    for i in 0..num {
+                        println!("Skipping...");
+                        self.step(&tokens, &mut cur_tok_idx);
+                    }
+
+                    let fndef = ParserToken::new(ParserTokenType::FuncHeader, *id, *start, *end, *line);
+                    parse_stack.push(fndef);
                 } else if v == "Retry" {
                 } else {
-                    panic!("ANSDKLA");
+                    panic!("Error: {}", v);
                 }
             }
         }
@@ -285,6 +284,10 @@ impl Parser {
 
     pub fn full_reduce_2(&mut self, context: &mut CompilerContext, parse_stack: &mut Vec<ParserToken>) -> Result<&'static str, &'static str> {
 
+        if parse_stack.len() == 0 {
+            return Err("Unknown");
+        }
+
         // pass 2
         //
         //      here we need to ignore function headers, potentially a tricky topic. or at least if
@@ -303,7 +306,7 @@ impl Parser {
 
         let mut path = &context.files[parse_stack[0].id];
 
-        let mut res = self.reduce(&parse_stack[0..parse_stack.len()-2], &parse_stack[parse_stack.len()-1], path);
+        let mut res = self.reduce(&parse_stack[0..parse_stack.len()-1], &parse_stack[parse_stack.len()-1], path);
 
         if let Ok(s) = res {
             // s is our returned new token type
@@ -314,13 +317,35 @@ impl Parser {
             let func = &context.get_func(|x| (*x).get_type() == str_to_type(parse_stack[0].get_literal(path)) && x.get_name() == parse_stack[1].get_literal(path));
 
             if let Some(f) = func {
-                
+                println!("Found function: {:?}", func);
+                return Err(format!("Skip {}", (*f).0.get_args().len()*2).leak());
             } else {
 
+                /*
+                 *
+                 *      this is where we interpret function bodies into abstract syntax trees
+                 *
+                 */
+
+                let id = &parse_stack[0].get_id();
+                let start = &parse_stack[0].get_start();
+                let end = &parse_stack[0].get_end();
+                let line = &parse_stack[0].get_line();
+                let new_token = ParserToken::new(s, *id, *start, *end, *line);
+                *parse_stack = vec![];
+
+                if s == ParserTokenType::FuncHeader {
+                    return Ok("Success");
+                } else if s == ParserTokenType::Api {
+                    return Ok("Skip 2");
+                } else {
+                    parse_stack.push(new_token);
+                    return Ok("Success");
+                }
             }
 
         } else {
-            return Err("Something");
+            return Err("Unknown");
         }
 
         Ok("Success")
@@ -342,14 +367,18 @@ impl Parser {
 
         println!("types: {:?}\ntypes_ahead: {:?}\n", &types, &types_ahead);
 
-        let res = self.trie_1.match_route(&types);
-        let res_la = self.trie_1.match_route(&types_ahead);
+        let res = self.trie_2.match_route(&types);
+        let res_la = self.trie_2.match_route(&types_ahead);
 
         println!("res: {:?}\nres_la: {:?}", &res, &res_la);
 
         if res {
             if !res_la {
-                return Ok(self.get_regex(types).unwrap());
+                if let Some(s) = self.get_regex_2(types) {
+                    return Ok(s);
+                } else {
+                    return Err("Unknown");
+                }
             }
 
             return Err("Unknown");
@@ -425,6 +454,24 @@ impl Parser {
         None
     }
 
+    fn get_regex_2(&mut self, vals: Vec<usize>) -> Option<ParserTokenType> {
+        use std::rc::Rc;
+        println!("Getting child from route: {:?}", vals);
+        let r = self.trie_2.get_child_from_route(vals);
+
+        if let Some(ref s) = r {
+            if let Ok(trie_node) = Rc::try_unwrap(s.into()) {
+                if let Some(val) = trie_node.borrow_mut().get_leaf() {
+                    return Some(ParserTokenType::from_usize(val));
+                }
+            } else {
+                panic!("Rc unwrap failure: {:?}", r.unwrap().borrow() );
+            }
+        } else {
+        }
+
+        None
+    }
     
 }
 
@@ -478,6 +525,7 @@ impl ParserToken {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ParserTokenType {
+    Api=0,
     Expr=3,
     Func=6,
     Id=4,
@@ -499,11 +547,13 @@ pub enum ParserTokenType {
     FuncHeader=20,
     Group=21,
     Void=22,
+    FuncBody=23,
 }
 
 impl ParserTokenType {
     pub fn from_usize(num: usize) -> ParserTokenType {
         match num {
+            0 => ParserTokenType::Api,
             1 => ParserTokenType::Type,
             3 => ParserTokenType::Expr,
             4 => ParserTokenType::Id,
@@ -525,6 +575,7 @@ impl ParserTokenType {
             20 => ParserTokenType::FuncHeader,
             21 => ParserTokenType::Group,
             22 => ParserTokenType::Void,
+            23 => ParserTokenType::FuncBody,
             _ => ParserTokenType::Id,
         }
     }

@@ -21,9 +21,9 @@ $__local_stdio_printf_options = comdat any
 
 $_vfprintf_l = comdat any
 
-$"??_C@_0BI@DKEFBFLJ@Hello?0?5world?$CB?5Num?5is?5?$CFi?$AA@" = comdat any
+$"??_C@_0O@GEHPLBPJ@Hello?0?5world?$CB?$AA@" = comdat any
 
-@"??_C@_0BI@DKEFBFLJ@Hello?0?5world?$CB?5Num?5is?5?$CFi?$AA@" = linkonce_odr dso_local unnamed_addr constant [24 x i8] c"Hello, world! Num is %i\00", comdat, align 1
+@"??_C@_0O@GEHPLBPJ@Hello?0?5world?$CB?$AA@" = linkonce_odr dso_local unnamed_addr constant [14 x i8] c"Hello, world!\00", comdat, align 1
 @__local_stdio_printf_options._OptionsStorage = internal global i64 0, align 8
 
 ; Function Attrs: noinline nounwind optnone uwtable
@@ -105,43 +105,10 @@ define dso_local i32 @main(i32 noundef %0, ptr noundef %1) #0 {
   %3 = alloca i32, align 4
   %4 = alloca ptr, align 8
   %5 = alloca i32, align 4
-  %6 = alloca i32, align 4
-  %7 = alloca i32, align 4
-  %8 = alloca i32, align 4
-  %9 = alloca i32, align 4
-  %10 = alloca i32, align 4
-  %11 = alloca i32, align 4
-  %12 = alloca i32, align 4
-  %13 = alloca i32, align 4
-  %14 = alloca i32, align 4
-  %15 = alloca i32, align 4
-  %16 = alloca i32, align 4
-  %17 = alloca i32, align 4
-  %18 = alloca i32, align 4
-  %19 = alloca i32, align 4
-  %20 = alloca i32, align 4
-  %21 = alloca i32, align 4
   store i32 0, ptr %3, align 4
   store ptr %1, ptr %4, align 8
   store i32 %0, ptr %5, align 4
-  store i32 5, ptr %6, align 4
-  store i32 5, ptr %7, align 4
-  store i32 5, ptr %8, align 4
-  store i32 5, ptr %9, align 4
-  store i32 5, ptr %10, align 4
-  store i32 5, ptr %11, align 4
-  store i32 5, ptr %12, align 4
-  store i32 5, ptr %13, align 4
-  store i32 5, ptr %14, align 4
-  store i32 5, ptr %15, align 4
-  store i32 5, ptr %16, align 4
-  store i32 5, ptr %17, align 4
-  store i32 5, ptr %18, align 4
-  store i32 5, ptr %19, align 4
-  store i32 5, ptr %20, align 4
-  store i32 5, ptr %21, align 4
-  %22 = load i32, ptr %6, align 4
-  %23 = call i32 (ptr, ...) @printf(ptr noundef @"??_C@_0BI@DKEFBFLJ@Hello?0?5world?$CB?5Num?5is?5?$CFi?$AA@", i32 noundef %22)
+  %6 = call i32 (ptr, ...) @printf(ptr noundef @"??_C@_0O@GEHPLBPJ@Hello?0?5world?$CB?$AA@")
   ret i32 0
 }
 

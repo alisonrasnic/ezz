@@ -15,7 +15,7 @@ pub struct CompilerContext {
     pub types: Vec<&'static str>,
     pub vars:  Vec<&'static str>,
 
-    pub funcs: Vec<FnDef>,
+    pub funcs: Vec<(FnDef, Option<Tree<ParserToken>>)>,
 
     last_func: Option<usize>,
 }
@@ -39,7 +39,7 @@ impl CompilerContext {
 
     pub fn append_last_func(&mut self, arg: Arg) {
         if let Some(i) = self.last_func {
-            self.funcs[i].add_arg(arg); 
+            self.funcs[i].0.add_arg(arg); 
         } else {
             panic!("Append to function but no function to append to");
         }
@@ -48,7 +48,7 @@ impl CompilerContext {
     pub fn set_func(&mut self, def: FnDef) {
         if !self.funcs_has(&def) {
             println!("function added!");
-            self.funcs.push(def);
+            self.funcs.push((def, None));
             self.last_func = Some(self.funcs.len()-1);
         } else {
             panic!("UNIMPLEMENTED");
@@ -58,7 +58,7 @@ impl CompilerContext {
 
     fn funcs_has(&self, def: &FnDef) -> bool {
         for x in &self.funcs {
-            if x.get_name() == def.get_name() {
+            if x.0.get_name() == def.get_name() {
                 return true;
             }
         }
@@ -66,9 +66,9 @@ impl CompilerContext {
         false
     }
 
-    pub fn get_func<F: Fn(&FnDef) -> bool>(&self, f: F) -> Option<&FnDef> {
+    pub fn get_func<F: Fn(&FnDef) -> bool>(&self, f: F) -> Option<&(FnDef, Option<Tree<ParserToken>>)> {
         for x in &self.funcs {
-            if f(x) {
+            if f(&x.0) {
                 return Some(x);
             }
         }

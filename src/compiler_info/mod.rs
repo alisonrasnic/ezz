@@ -1,5 +1,6 @@
-use crate::parser::ParserTokenType;
+use crate::parser::{ParserToken, ParserTokenType};
 use crate::ezz_type::EzzType;
+use myl_tree::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Arg {
@@ -35,32 +36,38 @@ impl FnDef {
         FnDef { name: name, start: start, arguments: args, fn_type: typ, prefix: prefix }
     }
 
-    pub fn ezz_defaults() -> Vec<FnDef> {
-        let mut rsx: Vec<FnDef> = vec![];
+    fn let_tree() -> Tree<ParserToken> {
+        let tree = Tree::<ParserToken>::new();
 
-        rsx.push(FnDef::new("let", None, vec![Arg::new('i', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Void, false));
-        rsx.push(FnDef::new("let", None, vec![Arg::new('i', "")], EzzType::Void, false));
+        tree
+    }
+
+    pub fn ezz_defaults() -> Vec<(FnDef, Option<Tree<ParserToken>>)> {
+        let mut rsx: Vec<(FnDef, Option<Tree<ParserToken>>)> = vec![];
+
+        rsx.push((FnDef::new("let", None, vec![Arg::new('i', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Identifier, false), None));
+        rsx.push((FnDef::new("let", None, vec![Arg::new('i', "")], EzzType::Identifier, false), None));
         
-        rsx.push(FnDef::new("mut", None, vec![Arg::new('i', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Void, false));
-        rsx.push(FnDef::new("mut", None, vec![Arg::new('i', "")], EzzType::Void, false));
+        rsx.push((FnDef::new("mut", None, vec![Arg::new('i', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Identifier, false), None));
+        rsx.push((FnDef::new("mut", None, vec![Arg::new('i', "")], EzzType::Identifier, false), None));
 
-        rsx.push(FnDef::new("+", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true)); 
-        rsx.push(FnDef::new("+", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true)); 
-        rsx.push(FnDef::new("-", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true)); 
-        rsx.push(FnDef::new("-", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true)); 
-        rsx.push(FnDef::new("*", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true)); 
-        rsx.push(FnDef::new("*", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true)); 
-        rsx.push(FnDef::new("/", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true)); 
-        rsx.push(FnDef::new("/", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true)); 
+        rsx.push((FnDef::new("+", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true), None)); 
+        rsx.push((FnDef::new("+", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true), None)); 
+        rsx.push((FnDef::new("-", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true), None)); 
+        rsx.push((FnDef::new("-", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true), None)); 
+        rsx.push((FnDef::new("*", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true), None)); 
+        rsx.push((FnDef::new("*", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true), None)); 
+        rsx.push((FnDef::new("/", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::I32, true), None)); 
+        rsx.push((FnDef::new("/", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::F32, true), None)); 
 
-        rsx.push(FnDef::new("=", None, vec![Arg::new('i', ""), Arg::new('v', "")], EzzType::Void, true));
+        rsx.push((FnDef::new("=", None, vec![Arg::new('i', ""), Arg::new('v', "")], EzzType::Void, true), None));
 
-        rsx.push(FnDef::new("==", None, vec![Arg::new('i', ""), Arg::new('i', "")], EzzType::U1, true));
-        rsx.push(FnDef::new("==", None, vec![Arg::new('i', ""), Arg::new('v', "")], EzzType::U1, true));
-        rsx.push(FnDef::new("==", None, vec![Arg::new('v', ""), Arg::new('i', "")], EzzType::U1, true));
-        rsx.push(FnDef::new("==", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::U1, true));
+        rsx.push((FnDef::new("==", None, vec![Arg::new('i', ""), Arg::new('i', "")], EzzType::U1, true), None));
+        rsx.push((FnDef::new("==", None, vec![Arg::new('i', ""), Arg::new('v', "")], EzzType::U1, true), None));
+        rsx.push((FnDef::new("==", None, vec![Arg::new('v', ""), Arg::new('i', "")], EzzType::U1, true), None));
+        rsx.push((FnDef::new("==", None, vec![Arg::new('v', ""), Arg::new('v', "")], EzzType::U1, true), None));
 
-        rsx.push(FnDef::new("if", None, vec![Arg::new('v', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Void, false));
+        rsx.push((FnDef::new("if", None, vec![Arg::new('v', ""), Arg::new('f', ""), Arg::new('v', "")], EzzType::Void, false), None));
 
         rsx
     }
@@ -71,6 +78,10 @@ impl FnDef {
 
     pub fn get_type(&self) -> EzzType {
         self.fn_type.clone()
+    }
+
+    pub fn get_args(&self) -> &Vec<Arg> {
+        &self.arguments
     }
 
     pub fn add_arg(&mut self, arg: Arg) {
