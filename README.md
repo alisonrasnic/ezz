@@ -9,11 +9,12 @@ Whilst it is still under implementation, there is a risk of libraries written in
 ``api`` is used to implement most of the core functions in ezz, which are included in the dev environment by default. Functions such as ``let``, ``mut``, ``if``, ``while``, ``for``, and many more are simply coded in ezz using ``api`` calls.
 
 As a usability example:
-```fn def_variables(Arg ...)
-        for a in arg
-            api add_var a
-        0
+```
+fn def_variables(Arg ...)
+    for a in arg
+        api add_var a
     0
+0
 ```
 This example function takes a variatic containing the ezz Type Arg (arguments), and defines all of them within the scope this function is called, allowing macros in ezz.
 
@@ -21,7 +22,7 @@ This example function takes a variatic containing the ezz Type Arg (arguments), 
 This project is currently unfinished and until an alpha version is done, I'd prefer if you wait to contribute. But, if you'd really like, just make a new branch and make a PR please!
 
 To compile this project, you simply need to clone the repo.
-Download Rustc/Cargo:
+<a href="https://www.rust-lang.org/tools/install">Download Rustc/Cargo</a>
 
 Build the project with ``cargo build``, test with ``cargo test``, and if you'd like to see the compiler in action, run ``make``.
 
