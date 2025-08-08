@@ -4,14 +4,23 @@ use std::fs::File;
 use std::env;
 use std::path::PathBuf;
 
+/// Compiler says hi to doc readers!!! c: 
 mod compiler;
+/// Contains scopes, variables, functions, files, and more for compiling
 mod compiler_context;
+/// Contains definitions for functions, scopes, and more for ``compiler_context``
 mod compiler_info;
+/// Typing for the language itself as opposed to parsing
 mod ezz_type;
+/// Transforms string into ``Vec<ParserToken>``
 mod lexer;
+/// Transforms ``Vec<ParserToken>`` into a parse tree using ``myl_tree``
 mod parser;
+/// Trie for RegEx parsing of grammar
 mod trie;
+/// Owns the tree nodes and parser tokens to create an AST
 mod tree_generator;
+/// Unit and integration testings
 mod tests;
 
 use parser::Parser;
@@ -117,6 +126,10 @@ fn main() -> io::Result<()> {
         println!("{:?}", x);
     }
     println!("\n");*/
+
+    println!("\n\n\n{:?}\n\n\n", context.gen);
+    println!("\n\n\n");
+    context.gen.get_tree().print_vlr();
 
     use colored::Colorize;
     {

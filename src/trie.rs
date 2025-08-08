@@ -1,6 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// Contains a usize that is connected to a TrieNode, allowing for RegEx-like expressions.
+/// The last node in this case is the return value e.g. 1, 2, 3, 4 is used to match against 1,2,3
+/// and then returns the value 4. 1,2,3 -> 4
 #[derive(PartialEq, Debug, Clone)]
 pub struct TrieNode {
     options: Vec<(usize, Rc<RefCell<TrieNode>>)>,

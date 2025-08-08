@@ -1,0 +1,3 @@
+fn put str input
+	api append_fasm "invoke GetStdHandle,STD_OUTPUT_HANDLE\ninvoke WriteConsole,eax,hello,14,NULL,NULL\n\t\t\tinvoke ExitProcess,0"
+	0

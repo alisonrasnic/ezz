@@ -8,6 +8,18 @@ use myl_tree::{Tree, TreeNode};
 
 use std::path::PathBuf;
 
+/// Contains RegEx Trie's for grammar rules
+/// 
+/// ``parse`` function is the start point for parsing tokens from Lexer into ``TreeGenerator``
+///
+/// Parser does two passes over tokens passed to it.
+/// # First Pass
+/// The first pass reads headers of functions it encounters, and skips the body of the functions.
+/// This is done so that when functions are called within a body, we already know what type it is,
+/// what arguments it expects to receive, whether it's in scope or not, and can be called even if
+/// the function is defined after the function calling it.
+/// # Second Pass
+/// The second pass reads the bodies of the function headers already processed. 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parser {
     trie_1: TrieNode,
@@ -227,6 +239,10 @@ impl Parser {
                 let mut def = FnDef::new((&parse_stack[1]).get_literal(&context.files[new_token.get_id()]), Some(*start), vec![], typ, false);
                 context.set_func(def);
 
+                {
+                    context.gen.string_tree_1(&mut parse_stack[0..parse_stack.len()-1].to_vec(), true);
+                }
+
                 *parse_stack = vec![];
                 parse_stack.push(new_token);
             
@@ -238,7 +254,6 @@ impl Parser {
                  *
                  */
 
-                println!("Found header argument!!!");
                 use crate::ezz_type::*;
                 let mut literal = parse_stack[2].get_literal(&context.files[new_token.get_id()]);
                 let mut literal_type = parse_stack[1].get_literal(&context.files[new_token.get_id()]);
@@ -246,6 +261,9 @@ impl Parser {
 
                 let mut arg = Arg::from_type(arg_type, literal); 
                 context.append_last_func(arg);
+
+                context.gen.add_leaf_to_string(&mut parse_stack[1], true);
+                context.gen.add_leaf_to_string(&mut parse_stack[2], true);
 
                 *parse_stack = vec![];
                 parse_stack.push(new_token);
@@ -258,13 +276,15 @@ impl Parser {
                  *
                  */
 
-                println!("Found header argument!!!");
                 use crate::ezz_type::*;
                 let mut literal = parse_stack[3].get_literal(&context.files[new_token.get_id()]);
                 let mut literal_type = parse_stack[2].get_literal(&context.files[new_token.get_id()]);
 
                 let mut arg = Arg::from_type(str_to_type(literal_type), literal); 
                 context.append_last_func(arg);
+                
+                context.gen.add_leaf_to_string(&mut parse_stack[1], true);
+                context.gen.add_leaf_to_string(&mut parse_stack[2], true);
 
                 *parse_stack = vec![];
                 parse_stack.push(new_token);
@@ -317,7 +337,6 @@ impl Parser {
             let func = &context.get_func(|x| (*x).get_type() == str_to_type(parse_stack[0].get_literal(path)) && x.get_name() == parse_stack[1].get_literal(path));
 
             if let Some(f) = func {
-                println!("Found function: {:?}", func);
                 return Err(format!("Skip {}", (*f).0.get_args().len()*2).leak());
             } else {
 
@@ -365,12 +384,8 @@ impl Parser {
         let mut types_ahead = types.clone();
         types_ahead.push(look_ahead.get_type() as usize);
 
-        println!("types: {:?}\ntypes_ahead: {:?}\n", &types, &types_ahead);
-
         let res = self.trie_2.match_route(&types);
         let res_la = self.trie_2.match_route(&types_ahead);
-
-        println!("res: {:?}\nres_la: {:?}", &res, &res_la);
 
         if res {
             if !res_la {
@@ -401,12 +416,8 @@ impl Parser {
         let mut types_ahead = types.clone();
         types_ahead.push(look_ahead.get_type() as usize);
 
-        println!("types: {:?}\ntypes_ahead: {:?}\n", &types, &types_ahead);
-
         let res = self.trie_1.match_route(&types);
         let res_la = self.trie_1.match_route(&types_ahead);
-
-        println!("res: {:?}\nres_la: {:?}", &res, &res_la);
 
         if res {
             if !res_la {
@@ -437,7 +448,6 @@ impl Parser {
     // borken!!
     fn get_regex(&mut self, vals: Vec<usize>) -> Option<ParserTokenType> {
         use std::rc::Rc;
-        println!("Getting child from route: {:?}", vals);
         let r = self.trie_1.get_child_from_route(vals);
 
         if let Some(ref s) = r {
@@ -456,7 +466,6 @@ impl Parser {
 
     fn get_regex_2(&mut self, vals: Vec<usize>) -> Option<ParserTokenType> {
         use std::rc::Rc;
-        println!("Getting child from route: {:?}", vals);
         let r = self.trie_2.get_child_from_route(vals);
 
         if let Some(ref s) = r {

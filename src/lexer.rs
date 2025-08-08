@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::parser::{ParserTokenType, ParserToken};
 use crate::compiler_context::CompilerContext;
 
+/// ``Lexer`` takes in a ``PathBuf`` and returns ``Vec<ParserToken>`` to be parsed by ``Parser``
 pub struct Lexer; 
 
 impl Lexer {
@@ -43,12 +44,17 @@ impl Lexer {
 
                     if let Some(s) = res {
 
-                        lexes.push(ParserToken::new(s, id, start, i, line_count));
+                        let mut token = ParserToken::new(s, id, start, i, line_count);
+                        lexes.push(token);
+                        context.gen.take_mut(token);
                         println!("Token added type: {:?}, name: {}", s, &text[start..i]);
                         start = i;
 
                     } else {
-                        lexes.push(ParserToken::new(ParserTokenType::Id, id, start, i, line_count));
+
+                        let mut token = ParserToken::new(ParserTokenType::Id, id, start, i, line_count);
+                        context.gen.take_mut(token);
+                        lexes.push(token);
                         println!("Identifier added, name: {}", &text[start..i]);
                         start = i;
                     }
